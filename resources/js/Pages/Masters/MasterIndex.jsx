@@ -25,6 +25,11 @@ export default function MasterIndex({
     hasProductCategoryFilter = false,
     hasStoreFilter = false,
     hasProductFilter = false,
+    hasBranchFilter = false,
+    hasEmployeeFilter = false,
+    hasMonthFilter = false,
+    hasYearFilter = false,
+    hasStatusFilter = false,
     states = [],
     cities = [],
     areas = [],
@@ -35,6 +40,12 @@ export default function MasterIndex({
     productCategories = [],
     stores = [],
     products = [],
+    branches = [],
+    employees = [],
+    monthOptions = [],
+    yearOptions = [],
+    statusOptions = [],
+    customActions = null,
     onStateChange = null,
     onCityChange = null,
     title,
@@ -70,6 +81,11 @@ export default function MasterIndex({
         useState(null);
     const [selectedStore, setSelectedStore] = useState(null);
     const [selectedProduct, setSelectedProduct] = useState(null);
+    const [selectedBranch, setSelectedBranch] = useState(null);
+    const [selectedEmployee, setSelectedEmployee] = useState(null);
+    const [selectedMonth, setSelectedMonth] = useState(null);
+    const [selectedYear, setSelectedYear] = useState(null);
+    const [selectedStatus, setSelectedStatus] = useState(null);
 
     // Dynamic cities and areas based on selections
     const [availableCities, setAvailableCities] = useState(cities);
@@ -145,6 +161,16 @@ export default function MasterIndex({
     const productOptions = [
         { value: null, label: "All Products" },
         ...products.map((p) => ({ value: p.id, label: p.name })),
+    ];
+
+    const branchOptions = [
+        { value: null, label: "All Branches" },
+        ...branches.map((b) => ({ value: b.id, label: b.name })),
+    ];
+
+    const employeeOptions = [
+        { value: null, label: "All Employees" },
+        ...employees.map((e) => ({ value: e.id, label: e.name })),
     ];
 
     // Helper function to get nested value
@@ -462,6 +488,105 @@ export default function MasterIndex({
         );
     };
 
+    const handleBranchFilter = (option) => {
+        setSelectedBranch(option);
+
+        router.get(
+            viewBase,
+            {
+                search: filterText,
+                per_page: perPage,
+                branch_id: option?.value,
+                employee_id: selectedEmployee?.value,
+                state_id: selectedState?.value,
+                city_id: selectedCity?.value,
+                area_id: selectedArea?.value,
+                company_id: selectedCompany?.value,
+                store_id: selectedStore?.value,
+                product_id: selectedProduct?.value,
+                month: selectedMonth?.value,
+                year: selectedYear?.value,
+                status: selectedStatus?.value,
+            },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
+    const handleEmployeeFilter = (option) => {
+        setSelectedEmployee(option);
+
+        router.get(
+            viewBase,
+            {
+                search: filterText,
+                per_page: perPage,
+                employee_id: option?.value,
+                branch_id: selectedBranch?.value,
+                state_id: selectedState?.value,
+                city_id: selectedCity?.value,
+                area_id: selectedArea?.value,
+                company_id: selectedCompany?.value,
+                store_id: selectedStore?.value,
+                product_id: selectedProduct?.value,
+                month: selectedMonth?.value,
+                year: selectedYear?.value,
+                status: selectedStatus?.value,
+            },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
+    const handleMonthFilter = (option) => {
+        setSelectedMonth(option);
+
+        router.get(
+            viewBase,
+            {
+                search: filterText,
+                per_page: perPage,
+                month: option?.value,
+                year: selectedYear?.value,
+                employee_id: selectedEmployee?.value,
+                status: selectedStatus?.value,
+            },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
+    const handleYearFilter = (option) => {
+        setSelectedYear(option);
+
+        router.get(
+            viewBase,
+            {
+                search: filterText,
+                per_page: perPage,
+                year: option?.value,
+                month: selectedMonth?.value,
+                employee_id: selectedEmployee?.value,
+                status: selectedStatus?.value,
+            },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
+    const handleStatusFilter = (option) => {
+        setSelectedStatus(option);
+
+        router.get(
+            viewBase,
+            {
+                search: filterText,
+                per_page: perPage,
+                status: option?.value,
+                month: selectedMonth?.value,
+                year: selectedYear?.value,
+                employee_id: selectedEmployee?.value,
+            },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
+
     const onToggle = (row) => {
         setConfirmBox({
             show: true,
@@ -608,6 +733,10 @@ export default function MasterIndex({
                 name: <div className="fw-bold">Action</div>,
                 cell: (row) => (
                     <div className="d-flex gap-2">
+                        {/* Custom Actions (if provided) */}
+                        {customActions && customActions(row)}
+
+                        {/* Default Actions */}
                         {hasToggle && (
                             <button
                                 className={`btn btn-sm ${row.is_active ? "btn-dark" : "btn-dark"} text-white`}
@@ -636,7 +765,7 @@ export default function MasterIndex({
                     </div>
                 ),
                 ignoreRowClick: true,
-                width: hasToggle ? "180px" : "150px",
+                width: customActions ? "250px" : hasToggle ? "180px" : "150px",
             },
         ],
         [pagination, columns, hasToggle],
@@ -698,6 +827,11 @@ export default function MasterIndex({
         hasProductCategoryFilter,
         hasStoreFilter,
         hasProductFilter,
+        hasBranchFilter,
+        hasEmployeeFilter,
+        hasMonthFilter,
+        hasYearFilter,
+        hasStatusFilter,
     ].filter(Boolean).length;
 
     // Determine column class based on number of filters
@@ -1098,6 +1232,194 @@ export default function MasterIndex({
                                         value={selectedProduct}
                                         onChange={handleProductFilter}
                                         placeholder="Filter by Product"
+                                        isClearable
+                                        styles={{
+                                            control: (base) => ({
+                                                ...base,
+                                                borderColor: "#dee2e6",
+                                                minHeight: "38px",
+                                                height: "38px",
+                                            }),
+                                            valueContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                                padding: "0 8px",
+                                            }),
+                                            input: (base) => ({
+                                                ...base,
+                                                margin: "0",
+                                                padding: "0",
+                                            }),
+                                            indicatorsContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                            }),
+                                        }}
+                                    />
+                                </div>
+                            )}
+                            {hasBranchFilter && (
+                                <div className={getFilterColumnClass()}>
+                                    <Select
+                                        options={branchOptions}
+                                        value={selectedBranch}
+                                        onChange={handleBranchFilter}
+                                        placeholder="Filter by Branch"
+                                        isClearable
+                                        styles={{
+                                            control: (base) => ({
+                                                ...base,
+                                                borderColor: "#dee2e6",
+                                                minHeight: "38px",
+                                                height: "38px",
+                                            }),
+                                            valueContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                                padding: "0 8px",
+                                            }),
+                                            input: (base) => ({
+                                                ...base,
+                                                margin: "0",
+                                                padding: "0",
+                                            }),
+                                            indicatorsContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                            }),
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Employee Filter */}
+                            {hasEmployeeFilter && (
+                                <div className={getFilterColumnClass()}>
+                                    <Select
+                                        options={employeeOptions}
+                                        value={selectedEmployee}
+                                        onChange={handleEmployeeFilter}
+                                        placeholder="Filter by Employee"
+                                        isClearable
+                                        styles={{
+                                            control: (base) => ({
+                                                ...base,
+                                                borderColor: "#dee2e6",
+                                                minHeight: "38px",
+                                                height: "38px",
+                                            }),
+                                            valueContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                                padding: "0 8px",
+                                            }),
+                                            input: (base) => ({
+                                                ...base,
+                                                margin: "0",
+                                                padding: "0",
+                                            }),
+                                            indicatorsContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                            }),
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Month Filter */}
+                            {hasMonthFilter && (
+                                <div className={getFilterColumnClass()}>
+                                    <Select
+                                        options={[
+                                            {
+                                                value: null,
+                                                label: "All Months",
+                                            },
+                                            ...monthOptions,
+                                        ]}
+                                        value={selectedMonth}
+                                        onChange={handleMonthFilter}
+                                        placeholder="Filter by Month"
+                                        isClearable
+                                        styles={{
+                                            control: (base) => ({
+                                                ...base,
+                                                borderColor: "#dee2e6",
+                                                minHeight: "38px",
+                                                height: "38px",
+                                            }),
+                                            valueContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                                padding: "0 8px",
+                                            }),
+                                            input: (base) => ({
+                                                ...base,
+                                                margin: "0",
+                                                padding: "0",
+                                            }),
+                                            indicatorsContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                            }),
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Year Filter */}
+                            {hasYearFilter && (
+                                <div className={getFilterColumnClass()}>
+                                    <Select
+                                        options={[
+                                            { value: null, label: "All Years" },
+                                            ...yearOptions,
+                                        ]}
+                                        value={selectedYear}
+                                        onChange={handleYearFilter}
+                                        placeholder="Filter by Year"
+                                        isClearable
+                                        styles={{
+                                            control: (base) => ({
+                                                ...base,
+                                                borderColor: "#dee2e6",
+                                                minHeight: "38px",
+                                                height: "38px",
+                                            }),
+                                            valueContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                                padding: "0 8px",
+                                            }),
+                                            input: (base) => ({
+                                                ...base,
+                                                margin: "0",
+                                                padding: "0",
+                                            }),
+                                            indicatorsContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                            }),
+                                        }}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Status Filter */}
+                            {hasStatusFilter && (
+                                <div className={getFilterColumnClass()}>
+                                    <Select
+                                        options={[
+                                            {
+                                                value: null,
+                                                label: "All Status",
+                                            },
+                                            ...statusOptions,
+                                        ]}
+                                        value={selectedStatus}
+                                        onChange={handleStatusFilter}
+                                        placeholder="Filter by Status"
                                         isClearable
                                         styles={{
                                             control: (base) => ({

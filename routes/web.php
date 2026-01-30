@@ -18,6 +18,7 @@ use App\Http\Controllers\OfferMasterController;
 use App\Http\Controllers\QuestionMasterController;
 use App\Http\Controllers\StoreProductController;
 use App\Http\Controllers\EmployeeMasterController;
+use App\Http\Controllers\EmployeeTargetController;
 use App\Http\Controllers\StockApprovalController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
@@ -281,6 +282,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('store-master.download-template');
     Route::post('/store-master/upload', [StoreMasterController::class, 'uploadExcel'])
         ->name('store-master.upload');
+    Route::get('/stores/all-active', [StoreMasterController::class, 'getAllActiveStores'])->name('stores.all-active');
 
     // ============================================
 // PRODUCT MASTER ROUTES
@@ -369,6 +371,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('employee-master.destroy');
     Route::post('/employee-masters/{id}/toggle', [EmployeeMasterController::class, 'toggleStatus'])
         ->name('employee-master.toggle');
+    Route::get('/employee-master/download-template', [EmployeeMasterController::class, 'downloadTemplate'])
+        ->name('employee-master.download-template');
+    Route::post('/employee-masters/upload', [EmployeeMasterController::class, 'uploadExcel'])
+        ->name('employee-master.upload');
 
     // Store Assignment Routes
     Route::get('/employee-masters/{id}/stores', [EmployeeMasterController::class, 'getAssignedStores'])
@@ -377,6 +383,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('employee-master.assign-stores');
     Route::delete('/employee-masters/{id}/stores/{assignmentId}', [EmployeeMasterController::class, 'removeStoreAssignment'])
         ->name('employee-master.remove-store');
+
+    // ============================================
+// EMPLOYEE TARGET ROUTES
+// ============================================
+    Route::get('/employee-targets', [EmployeeTargetController::class, 'index'])
+        ->name('employee-target.index');
+    Route::get('/employee-targets/create', [EmployeeTargetController::class, 'create'])
+        ->name('employee-target.create');
+    Route::post('/employee-targets', [EmployeeTargetController::class, 'store'])
+        ->name('employee-target.store');
+    Route::get('/employee-targets/{id}/edit', [EmployeeTargetController::class, 'edit'])
+        ->name('employee-target.edit');
+    Route::post('/employee-targets/{id}', [EmployeeTargetController::class, 'update'])
+        ->name('employee-target.update');
+    Route::delete('/employee-targets/{id}', [EmployeeTargetController::class, 'destroy'])
+        ->name('employee-target.destroy');
+
 
     // ============================================
 // STORE PRODUCT ROUTES

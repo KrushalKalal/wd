@@ -82,7 +82,16 @@ export default function Sidebar({ isOpen = true }) {
                 icon: "fa fa-question-circle",
                 href: route("question-master.index"),
             },
-            { label: "Employee Master", icon: "fa fa-users", href: "/" },
+            {
+                label: "Employee Master",
+                icon: "fa fa-user",
+                href: route("employee-master.index"),
+            },
+            {
+                label: "Employee Target",
+                icon: "fa fa-bullseye",
+                href: route("employee-target.index"),
+            },
             { label: "Reports", icon: "fa fa-file", href: "/" },
         ],
         "Country Head": [

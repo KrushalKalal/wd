@@ -540,4 +540,27 @@ class StoreMasterController extends Controller
 
         return response()->json($areas);
     }
+
+    public function getAllActiveStores()
+    {
+        $stores = Store::query()
+            ->select([
+                'id',
+                'name',
+                'state_id',
+                'city_id',
+                'area_id',
+                'pin_code',          // optional – add more fields if needed
+            ])
+            ->with([
+                'state:id,name',
+                'city:id,name',
+                'area:id,name',
+            ])
+            ->where('is_active', true)   // ← only active stores – remove if not needed
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($stores);
+    }
 }

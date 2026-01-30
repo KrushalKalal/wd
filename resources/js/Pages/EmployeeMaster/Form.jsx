@@ -10,46 +10,45 @@ export default function Form({
     employees = [],
     roles = [],
 }) {
-    const roleOptions = roles.map((r) => ({
-        value: r.id,
-        label: r.name,
-    }));
+    const roleOptions = roles.map((r) => ({ value: r.id, label: r.name }));
     const companyOptions = companies.map((c) => ({
         value: c.id,
         label: c.name,
     }));
-    const branchOptions = branches.map((b) => ({
-        value: b.id,
-        label: b.name,
-    }));
-    const deptOptions = departments.map((d) => ({
+    const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
+    const departmentOptions = departments.map((d) => ({
         value: d.id,
         label: d.name,
     }));
-    const employeeOptions = employees.map((e) => ({
+    const managerOptions = employees.map((e) => ({
         value: e.id,
         label: e.name,
     }));
 
     const fields = [
+        // Basic Info
         {
             name: "name",
             label: "Employee Name",
             type: "text",
             required: true,
+            placeholder: "Enter employee name",
         },
         {
             name: "email",
             label: "Email (Login)",
             type: "email",
             required: true,
+            placeholder: "Enter email address",
         },
         {
             name: "password",
             label: "Password",
             type: "text",
             required: !employee,
-            placeholder: employee ? "Leave blank to keep current password" : "Enter password",
+            placeholder: employee
+                ? "Leave blank to keep current password"
+                : "Enter password",
         },
         {
             name: "role_id",
@@ -62,139 +61,141 @@ export default function Form({
             name: "designation",
             label: "Designation",
             type: "text",
-            required: false,
+            placeholder: "e.g., Sales Manager",
         },
+
+        // Organization
         {
             name: "company_id",
             label: "Company",
             type: "select",
-            required: false,
             options: companyOptions,
         },
         {
             name: "branch_id",
             label: "Branch",
             type: "select",
-            required: false,
             options: branchOptions,
         },
         {
             name: "dept_id",
             label: "Department",
             type: "select",
-            required: false,
-            options: deptOptions,
+            options: departmentOptions,
         },
+
+        // Location
         {
             name: "state_id",
             label: "State",
             type: "select",
-            required: false,
         },
         {
             name: "city_id",
             label: "City",
             type: "select",
-            required: false,
         },
         {
             name: "area_id",
             label: "Area",
             type: "select",
-            required: false,
-        },
-        {
-            name: "address",
-            label: "Address",
-            type: "textarea",
-            required: false,
-            rows: 3,
         },
         {
             name: "pin_code",
             label: "Pin Code",
             type: "text",
-            required: false,
+            placeholder: "Enter pin code",
         },
+        {
+            name: "address",
+            label: "Address",
+            type: "textarea",
+            rows: 3,
+            placeholder: "Enter complete address",
+        },
+
+        // Contact Details
         {
             name: "contact_number_1",
             label: "Contact Number 1",
             type: "text",
-            required: false,
+            placeholder: "Primary contact number",
         },
         {
             name: "contact_number_2",
             label: "Contact Number 2",
             type: "text",
-            required: false,
+            placeholder: "Secondary contact number",
         },
         {
             name: "email_1",
             label: "Email 1",
             type: "email",
-            required: false,
+            placeholder: "Primary email",
         },
         {
             name: "email_2",
             label: "Email 2",
             type: "email",
-            required: false,
+            placeholder: "Secondary email",
         },
-        {
-            name: "dob",
-            label: "Date of Birth",
-            type: "date",
-            required: false,
-        },
-        {
-            name: "doj",
-            label: "Date of Joining",
-            type: "date",
-            required: false,
-        },
+
+        // Documents
         {
             name: "aadhar_number",
             label: "Aadhar Number",
             type: "text",
-            required: false,
+            placeholder: "Enter Aadhar number",
         },
         {
             name: "aadhar_image",
             label: "Aadhar Image/PDF",
             type: "file",
-            required: false,
             accept: ".jpg,.jpeg,.png,.pdf",
-            helpText: "Upload Aadhar card (Max: 2MB)",
+            helpText: "Upload Aadhar card (JPG, PNG, or PDF, max 2MB)",
         },
         {
             name: "employee_image",
             label: "Employee Photo",
             type: "file",
-            required: false,
             accept: ".jpg,.jpeg,.png",
-            helpText: "Upload employee photo (Max: 2MB)",
+            helpText: "Upload employee photo (JPG or PNG, max 2MB)",
+        },
+
+        // Dates
+        {
+            name: "dob",
+            label: "Date of Birth",
+            type: "date",
         },
         {
+            name: "doj",
+            label: "Date of Joining",
+            type: "date",
+        },
+
+        // Reporting
+        {
             name: "reporting_to",
-            label: "Reports To (Manager)",
+            label: "Reporting To (Manager)",
             type: "select",
-            required: false,
-            options: employeeOptions,
+            options: managerOptions,
         },
     ];
 
     return (
-           <MasterForm
-               auth={auth}
-               masterName="Employee Master"
-               masterData={store}
-               viewBase="/employee-masters"
-               fields={fields}
-               hasStateDropdown={true}
-               hasCityDropdown={true}
-               hasAreaDropdown={true}
-               states={states}
-               title="Employee Master"
-           />
-       );
+        <MasterForm
+            auth={auth}
+            masterName="Employee"
+            masterData={employee}
+            viewBase="/employee-masters"
+            fields={fields}
+            hasStateDropdown={true}
+            hasCityDropdown={true}
+            hasAreaDropdown={true}
+            states={states}
+            title="Employee Management"
+        />
+    );
 }
+    

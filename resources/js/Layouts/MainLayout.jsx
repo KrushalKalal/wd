@@ -89,7 +89,7 @@ export default function MainLayout({ children, title, auth }) {
 
             <style jsx>{`
                 :root {
-                    --sidebar-width: 190px;
+                    --sidebar-width: 230px;
                     --header-height: 70px;
                     --footer-height: 50px;
                 }

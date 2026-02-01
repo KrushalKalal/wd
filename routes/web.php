@@ -20,6 +20,7 @@ use App\Http\Controllers\StoreProductController;
 use App\Http\Controllers\EmployeeMasterController;
 use App\Http\Controllers\EmployeeTargetController;
 use App\Http\Controllers\StockApprovalController;
+use App\Http\Controllers\StoreVisitController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -327,6 +328,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('offer-master.download-template');
     Route::post('/offer-master/upload', [OfferMasterController::class, 'uploadExcel'])
         ->name('offer-master.upload');
+    Route::get('/offer-master/cities/{stateId}', [OfferMasterController::class, 'getCitiesByState'])->name('offer-master.cities.by-state');
+    Route::get('/offer-master/areas/{cityId}', [OfferMasterController::class, 'getAreasByCity'])->name('offer-master.areas.by-city');
+    Route::get('/offer-master/stores-by-categories', [OfferMasterController::class, 'getStoresByCategories'])->name('offer-master.stores.by-categories');
 
     // ============================================
 // QUESTION MASTER ROUTES
@@ -421,26 +425,21 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/store-product/upload', [StoreProductController::class, 'uploadExcel'])
         ->name('store-product.upload');
 
-    // ============================================
-// STOCK APPROVAL ROUTES
-// ============================================
-    Route::get('/stock-approvals', [StockApprovalController::class, 'index'])
-        ->name('stock-approval.index');
-    Route::get('/stock-approvals/{id}', [StockApprovalController::class, 'show'])
-        ->name('stock-approval.show');
-    Route::post('/stock-approvals/{id}/approve', [StockApprovalController::class, 'approve'])
-        ->name('stock-approval.approve');
-    Route::post('/stock-approvals/{id}/reject', [StockApprovalController::class, 'reject'])
-        ->name('stock-approval.reject');
-    Route::post('/stock-approvals/{id}/deliver', [StockApprovalController::class, 'markDelivered'])
-        ->name('stock-approval.deliver');
-    Route::post('/stock-approvals/{id}/return', [StockApprovalController::class, 'markReturned'])
-        ->name('stock-approval.return');
-    Route::post('/stock-approvals/bulk-approve', [StockApprovalController::class, 'bulkApprove'])
-        ->name('stock-approval.bulk-approve');
-    Route::get('/stock-approvals/statistics', [StockApprovalController::class, 'statistics'])
-        ->name('stock-approval.statistics');
+    // Store Visits
+    Route::get('/store-visits', [StoreVisitController::class, 'index'])->name('store-visits.index');
+    Route::get('/store-visits/{id}', [StoreVisitController::class, 'show'])->name('store-visits.show');
+    Route::post('/store-visits/survey/{answerId}/review', [StoreVisitController::class, 'updateSurveyStatus'])->name('store-visits.survey.review');
+    Route::get('/store-visits/statistics', [StoreVisitController::class, 'statistics'])->name('store-visits.statistics');
 
+    // Stock Approvals
+    Route::get('/stock-approvals', [StockApprovalController::class, 'index'])->name('stock-approvals.index');
+    Route::get('/stock-approvals/{id}', [StockApprovalController::class, 'show'])->name('stock-approvals.show');
+    Route::post('/stock-approvals/{id}/approve', [StockApprovalController::class, 'approve'])->name('stock-approvals.approve');
+    Route::post('/stock-approvals/{id}/reject', [StockApprovalController::class, 'reject'])->name('stock-approvals.reject');
+    Route::post('/stock-approvals/{id}/deliver', [StockApprovalController::class, 'markDelivered'])->name('stock-approvals.deliver');
+    Route::post('/stock-approvals/{id}/return', [StockApprovalController::class, 'markReturned'])->name('stock-approvals.return');
+    Route::post('/stock-approvals/bulk-approve', [StockApprovalController::class, 'bulkApprove'])->name('stock-approvals.bulk-approve');
+    Route::get('/stock-approvals/statistics', [StockApprovalController::class, 'statistics'])->name('stock-approvals.statistics');
 
 });
 

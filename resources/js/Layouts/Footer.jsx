@@ -22,7 +22,7 @@ export default function Footer() {
                     .footer {
                         position: fixed;
                         bottom: 0;
-                        left: 190px; /* adjust with sidebar width if needed */
+                        left: 230px; /* adjust with sidebar width if needed */
                         right: 0;
                         height: 50px;
                         background: #fff;

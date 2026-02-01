@@ -50,6 +50,7 @@ export default function MasterIndex({
     onCityChange = null,
     title,
     hasToggle = true, // Enable toggle by default
+    customRender = null,
 }) {
     const { flash } = usePage().props;
     const records = data?.data || [];
@@ -667,6 +668,12 @@ export default function MasterIndex({
                 width: col.width,
 
                 cell: (row) => {
+                    if (col.type === "custom" && customRender) {
+                        const customContent = customRender(row, col);
+                        if (customContent) {
+                            return customContent;
+                        }
+                    }
                     // 👁 Catalogue PDF column
                     if (col.type === "pdf") {
                         return row.catalogue_pdf ? (

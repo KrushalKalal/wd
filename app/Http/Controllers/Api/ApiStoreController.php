@@ -55,6 +55,9 @@ class ApiStoreController extends Controller
             'categoryOne',
             'categoryTwo',
             'categoryThree',
+            'visits' => function ($q) {
+                $q->latest('visit_date');
+            }
         ])->findOrFail($id);
 
         return response()->json([
@@ -74,9 +77,11 @@ class ApiStoreController extends Controller
                 'email' => $store->email,
                 'billing_details' => $store->billing_details,
                 'shipping_details' => $store->shipping_details,
+                'status' => $store->visits->first()?->status,
             ]
         ]);
     }
+
 
     public function getStoreProducts(Request $request, $id)
     {

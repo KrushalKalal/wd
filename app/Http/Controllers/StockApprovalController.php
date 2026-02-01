@@ -14,9 +14,6 @@ use Inertia\Inertia;
 
 class StockApprovalController extends Controller
 {
-    /**
-     * Display pending stock transactions for approval
-     */
     public function index(Request $request)
     {
         $query = StockTransaction::with([
@@ -24,9 +21,7 @@ class StockApprovalController extends Controller
             'store.state',
             'store.city',
             'store.area',
-            'product.categoryOne',
-            'product.categoryTwo',
-            'product.categoryThree',
+            'product',
             'visit',
             'approvedBy'
         ]);
@@ -115,9 +110,6 @@ class StockApprovalController extends Controller
         ]);
     }
 
-    /**
-     * View transaction details
-     */
     public function show($id)
     {
         $transaction = StockTransaction::with([
@@ -125,9 +117,6 @@ class StockApprovalController extends Controller
             'store.state',
             'store.city',
             'store.area',
-            'product.categoryOne',
-            'product.categoryTwo',
-            'product.categoryThree',
             'visit.questionAnswers.question',
             'approvedBy'
         ])->findOrFail($id);
@@ -137,9 +126,6 @@ class StockApprovalController extends Controller
         ]);
     }
 
-    /**
-     * Approve a stock transaction
-     */
     public function approve(Request $request, $id)
     {
         $request->validate([
@@ -182,9 +168,6 @@ class StockApprovalController extends Controller
         }
     }
 
-    /**
-     * Reject a stock transaction
-     */
     public function reject(Request $request, $id)
     {
         $request->validate([
@@ -242,10 +225,6 @@ class StockApprovalController extends Controller
         }
     }
 
-    /**
-     * Mark as delivered (for ADD type transactions)
-     * This INCREASES the current_stock
-     */
     public function markDelivered(Request $request, $id)
     {
         $request->validate([
@@ -290,7 +269,7 @@ class StockApprovalController extends Controller
                 ]
             );
 
-            // CRITICAL: Add to current stock
+            // Add to current stock
             $storeProduct->increment('current_stock', $transaction->quantity);
 
             // Remove from pending stock
@@ -320,10 +299,6 @@ class StockApprovalController extends Controller
         }
     }
 
-    /**
-     * Mark as returned (for RETURN type transactions)
-     * This DECREASES the current_stock
-     */
     public function markReturned(Request $request, $id)
     {
         $request->validate([
@@ -376,10 +351,7 @@ class StockApprovalController extends Controller
             ]);
 
             // Update stock: SUBTRACT from current_stock, REMOVE from return_stock
-            // CRITICAL: Subtract from current stock
             $storeProduct->decrement('current_stock', $transaction->quantity);
-
-            // Remove from return stock
             $storeProduct->decrement('return_stock', $transaction->quantity);
 
             // Also update product total_stock
@@ -406,9 +378,6 @@ class StockApprovalController extends Controller
         }
     }
 
-    /**
-     * Bulk approve transactions
-     */
     public function bulkApprove(Request $request)
     {
         $request->validate([
@@ -445,9 +414,6 @@ class StockApprovalController extends Controller
         }
     }
 
-    /**
-     * Get statistics
-     */
     public function statistics()
     {
         $stats = [

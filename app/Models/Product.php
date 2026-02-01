@@ -8,12 +8,9 @@ class Product extends Model
 {
     protected $fillable = [
         'name',
-        'category_one_id',
-        'category_two_id',
-        'category_three_id',
         'p_category_id',
-        'mrp',
-        'edo',
+        'mrp',  
+        'edd',
         'total_stock',
         'is_active',
         'catalogue_pdf',
@@ -21,21 +18,11 @@ class Product extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
-        'edo' => 'date',
+        'edd' => 'decimal:2',
+        'mrp' => 'decimal:2',
+        'price' => 'decimal:2',
     ];
 
-    public function categoryOne()
-    {
-        return $this->belongsTo(CategoryOne::class);
-    }
-    public function categoryTwo()
-    {
-        return $this->belongsTo(CategoryTwo::class);
-    }
-    public function categoryThree()
-    {
-        return $this->belongsTo(CategoryThree::class);
-    }
     public function pCategory()
     {
         return $this->belongsTo(ProductCategory::class, 'p_category_id');

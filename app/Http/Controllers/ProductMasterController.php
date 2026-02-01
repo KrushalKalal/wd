@@ -3,9 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
-use App\Models\CategoryOne;
-use App\Models\CategoryTwo;
-use App\Models\CategoryThree;
 use App\Models\ProductCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -20,26 +17,11 @@ class ProductMasterController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['categoryOne', 'categoryTwo', 'categoryThree', 'pCategory']);
+        $query = Product::with(['pCategory']);
 
         // Search
         if ($request->has('search') && $request->search) {
             $query->where('name', 'like', '%' . $request->search . '%');
-        }
-
-        // Filter by category one
-        if ($request->has('category_one_id') && $request->category_one_id) {
-            $query->where('category_one_id', $request->category_one_id);
-        }
-
-        // Filter by category two
-        if ($request->has('category_two_id') && $request->category_two_id) {
-            $query->where('category_two_id', $request->category_two_id);
-        }
-
-        // Filter by category three
-        if ($request->has('category_three_id') && $request->category_three_id) {
-            $query->where('category_three_id', $request->category_three_id);
         }
 
         // Filter by product category
@@ -50,22 +32,13 @@ class ProductMasterController extends Controller
         $perPage = $request->get('per_page', 10);
         $products = $query->orderBy('name')->paginate($perPage);
 
-        $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $productCategories = ProductCategory::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('ProductMaster/Index', [
             'records' => $products,
-            'categoryOnes' => $categoryOnes,
-            'categoryTwos' => $categoryTwos,
-            'categoryThrees' => $categoryThrees,
             'productCategories' => $productCategories,
             'filters' => [
                 'search' => $request->search,
-                'category_one_id' => $request->category_one_id,
-                'category_two_id' => $request->category_two_id,
-                'category_three_id' => $request->category_three_id,
                 'p_category_id' => $request->p_category_id,
                 'per_page' => $perPage,
             ],
@@ -74,15 +47,9 @@ class ProductMasterController extends Controller
 
     public function create()
     {
-        $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $productCategories = ProductCategory::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('ProductMaster/Form', [
-            'categoryOnes' => $categoryOnes,
-            'categoryTwos' => $categoryTwos,
-            'categoryThrees' => $categoryThrees,
             'productCategories' => $productCategories,
         ]);
     }
@@ -91,12 +58,9 @@ class ProductMasterController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'category_one_id' => 'required|exists:category_one,id',
-            'category_two_id' => 'required|exists:category_two,id',
-            'category_three_id' => 'required|exists:category_three,id',
             'p_category_id' => 'required|exists:product_categories,id',
             'mrp' => 'required|numeric|min:0',
-            'edo' => 'nullable|date',
+            'edd' => 'nullable|numeric|min:0',
             'total_stock' => 'nullable|integer|min:0',
             'catalogue_pdf' => 'nullable|file|mimes:pdf|max:10240',
         ]);
@@ -131,21 +95,13 @@ class ProductMasterController extends Controller
 
     public function edit($id)
     {
-        $product = Product::with(['categoryOne', 'categoryTwo', 'categoryThree', 'pCategory'])
+        $product = Product::with(['pCategory'])
             ->findOrFail($id);
 
-
-        $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $productCategories = ProductCategory::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-
 
         return Inertia::render('ProductMaster/Form', [
             'product' => $product,
-            'categoryOnes' => $categoryOnes,
-            'categoryTwos' => $categoryTwos,
-            'categoryThrees' => $categoryThrees,
             'productCategories' => $productCategories,
         ]);
     }
@@ -154,12 +110,9 @@ class ProductMasterController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
-            'category_one_id' => 'required|exists:category_one,id',
-            'category_two_id' => 'required|exists:category_two,id',
-            'category_three_id' => 'required|exists:category_three,id',
             'p_category_id' => 'required|exists:product_categories,id',
-            'mrp' => 'required|numeric|min:0',
-            'edo' => 'nullable|date',
+            'mrp' => 'required|numeric|min:0',  
+            'edd' => 'nullable|numeric|min:0',
             'total_stock' => 'nullable|integer|min:0',
             'catalogue_pdf' => 'nullable|file|mimes:pdf|max:10240',
         ]);
@@ -187,7 +140,6 @@ class ProductMasterController extends Controller
             }
 
             $product->update($data);
-
 
             return redirect()->route('product-master.index')
                 ->with('success', 'Product updated successfully');
@@ -242,9 +194,6 @@ class ProductMasterController extends Controller
     public function downloadTemplate()
     {
         try {
-            $categoryOnes = CategoryOne::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
-            $categoryTwos = CategoryTwo::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
-            $categoryThrees = CategoryThree::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
             $productCategories = ProductCategory::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
 
             $spreadsheet = new Spreadsheet();
@@ -254,12 +203,10 @@ class ProductMasterController extends Controller
             // Headers
             $headers = [
                 'Product Name',
-                'Category One',
-                'Category Two',
-                'Category Three',
                 'Product Category',
                 'MRP',
-                'EDO (YYYY-MM-DD)',
+                'Price',
+                'EDD',
                 'Total Stock'
             ];
             $col = 'A';
@@ -276,42 +223,15 @@ class ProductMasterController extends Controller
                     'startColor' => ['argb' => 'FFE0E0E0']
                 ]
             ];
-            $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
+            $sheet->getStyle('A1:F1')->applyFromArray($headerStyle);
 
-            // Create dropdown lists
-            $cat1List = '"' . implode(',', $categoryOnes) . '"';
-            $cat2List = '"' . implode(',', $categoryTwos) . '"';
-            $cat3List = '"' . implode(',', $categoryThrees) . '"';
+            // Create dropdown list
             $pCatList = '"' . implode(',', $productCategories) . '"';
 
             // Add dropdowns
             for ($row = 2; $row <= 1000; $row++) {
-                // Category One dropdown (Column B)
+                // Product Category dropdown (Column B)
                 $validation = $sheet->getCell('B' . $row)->getDataValidation();
-                $validation->setType(DataValidation::TYPE_LIST);
-                $validation->setErrorStyle(DataValidation::STYLE_STOP);
-                $validation->setAllowBlank(false);
-                $validation->setShowDropDown(true);
-                $validation->setFormula1($cat1List);
-
-                // Category Two dropdown (Column C)
-                $validation = $sheet->getCell('C' . $row)->getDataValidation();
-                $validation->setType(DataValidation::TYPE_LIST);
-                $validation->setErrorStyle(DataValidation::STYLE_STOP);
-                $validation->setAllowBlank(false);
-                $validation->setShowDropDown(true);
-                $validation->setFormula1($cat2List);
-
-                // Category Three dropdown (Column D)
-                $validation = $sheet->getCell('D' . $row)->getDataValidation();
-                $validation->setType(DataValidation::TYPE_LIST);
-                $validation->setErrorStyle(DataValidation::STYLE_STOP);
-                $validation->setAllowBlank(false);
-                $validation->setShowDropDown(true);
-                $validation->setFormula1($cat3List);
-
-                // Product Category dropdown (Column E)
-                $validation = $sheet->getCell('E' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_STOP);
                 $validation->setAllowBlank(false);
@@ -319,11 +239,11 @@ class ProductMasterController extends Controller
                 $validation->setFormula1($pCatList);
 
                 // Default stock
-                $sheet->setCellValue('H' . $row, 0);
+                $sheet->setCellValue('F' . $row, 0);
             }
 
             // Auto-size columns
-            foreach (range('A', 'H') as $col) {
+            foreach (range('A', 'F') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
 
@@ -359,38 +279,18 @@ class ProductMasterController extends Controller
 
             foreach (array_slice($rows, 1) as $index => $row) {
                 $productName = trim($row['A'] ?? '');
-                $cat1Name = trim($row['B'] ?? '');
-                $cat2Name = trim($row['C'] ?? '');
-                $cat3Name = trim($row['D'] ?? '');
-                $pCatName = trim($row['E'] ?? '');
-                $mrp = trim($row['F'] ?? '');
-                $edo = trim($row['G'] ?? '');
-                $totalStock = trim($row['H'] ?? 0);
+                $pCatName = trim($row['B'] ?? '');
+                $mrp = trim($row['C'] ?? '');
+                $price = trim($row['D'] ?? '');
+                $edd = trim($row['E'] ?? '');
+                $totalStock = trim($row['F'] ?? 0);
 
-                if (!$productName || !$cat1Name || !$cat2Name || !$cat3Name || !$pCatName || !$mrp) {
-                    $errors[] = "Row " . ($index + 2) . ": Product name, all categories, and MRP are required";
+                if (!$productName || !$pCatName || !$mrp || !$price) {
+                    $errors[] = "Row " . ($index + 2) . ": Product name, category, MRP, and Price are required";
                     continue;
                 }
 
-                // Find categories
-                $cat1 = CategoryOne::whereRaw('LOWER(name) = ?', [strtolower($cat1Name)])->first();
-                if (!$cat1) {
-                    $errors[] = "Row " . ($index + 2) . ": Category One '{$cat1Name}' not found";
-                    continue;
-                }
-
-                $cat2 = CategoryTwo::whereRaw('LOWER(name) = ?', [strtolower($cat2Name)])->first();
-                if (!$cat2) {
-                    $errors[] = "Row " . ($index + 2) . ": Category Two '{$cat2Name}' not found";
-                    continue;
-                }
-
-                $cat3 = CategoryThree::whereRaw('LOWER(name) = ?', [strtolower($cat3Name)])->first();
-                if (!$cat3) {
-                    $errors[] = "Row " . ($index + 2) . ": Category Three '{$cat3Name}' not found";
-                    continue;
-                }
-
+                // Find product category
                 $pCat = ProductCategory::whereRaw('LOWER(name) = ?', [strtolower($pCatName)])->first();
                 if (!$pCat) {
                     $errors[] = "Row " . ($index + 2) . ": Product Category '{$pCatName}' not found";
@@ -399,12 +299,10 @@ class ProductMasterController extends Controller
 
                 Product::create([
                     'name' => $productName,
-                    'category_one_id' => $cat1->id,
-                    'category_two_id' => $cat2->id,
-                    'category_three_id' => $cat3->id,
                     'p_category_id' => $pCat->id,
                     'mrp' => $mrp,
-                    'edo' => $edo ?: null,
+                    'price' => $price,
+                    'edd' => $edd ?: null,
                     'total_stock' => $totalStock ?: 0,
                     'is_active' => true,
                     'catalogue_pdf' => null

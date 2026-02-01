@@ -11,12 +11,10 @@ export default function Index({
 }) {
     console.log(records);
     const columns = [
-        { key: "name", label: "Product Name", width: "200px" },
-        { key: "category_one.name", label: "Category One", width: "140px" },
-        { key: "category_two.name", label: "Category Two", width: "140px" },
-        { key: "category_three.name", label: "Category Three", width: "140px" },
         { key: "p_category.name", label: "Product Category", width: "150px" },
+        { key: "name", label: "Product Name", width: "200px" },
         { key: "mrp", label: "MRP", width: "100px" },
+        { key: "edd", label: "EDD", width: "100px" },
         { key: "total_stock", label: "Stock", width: "100px" },
         {
             key: "catalogue_pdf",
@@ -36,13 +34,7 @@ export default function Index({
             filters={filters}
             excelTemplateRoute="product-master.download-template"
             excelImportRoute="/product-master/upload"
-            hasCategoryOneFilter={true}
-            hasCategoryTwoFilter={true}
-            hasCategoryThreeFilter={true}
             hasProductCategoryFilter={true}
-            categoryOnes={categoryOnes}
-            categoryTwos={categoryTwos}
-            categoryThrees={categoryThrees}
             productCategories={productCategories}
             title="Product Master"
         />

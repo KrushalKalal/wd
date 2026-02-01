@@ -21,9 +21,7 @@ class StoreProductController extends Controller
             'store.state',
             'store.city',
             'store.area',
-            'product.categoryOne',
-            'product.categoryTwo',
-            'product.categoryThree'
+            'product'
         ]);
 
         // Search

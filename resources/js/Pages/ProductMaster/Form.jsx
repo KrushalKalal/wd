@@ -1,25 +1,6 @@
 import MasterForm from "../Masters/MasterForm";
 
-export default function Form({
-    auth,
-    product = null,
-    categoryOnes = [],
-    categoryTwos = [],
-    categoryThrees = [],
-    productCategories = [],
-}) {
-    const cat1Options = categoryOnes.map((c) => ({
-        value: c.id,
-        label: c.name,
-    }));
-    const cat2Options = categoryTwos.map((c) => ({
-        value: c.id,
-        label: c.name,
-    }));
-    const cat3Options = categoryThrees.map((c) => ({
-        value: c.id,
-        label: c.name,
-    }));
+export default function Form({ auth, product = null, productCategories = [] }) {
     const pCatOptions = productCategories.map((c) => ({
         value: c.id,
         label: c.name,
@@ -32,27 +13,6 @@ export default function Form({
             type: "text",
             required: true,
             placeholder: "Enter product name",
-        },
-        {
-            name: "category_one_id",
-            label: "Category One",
-            type: "select",
-            required: true,
-            options: cat1Options,
-        },
-        {
-            name: "category_two_id",
-            label: "Category Two",
-            type: "select",
-            required: true,
-            options: cat2Options,
-        },
-        {
-            name: "category_three_id",
-            label: "Category Three",
-            type: "select",
-            required: true,
-            options: cat3Options,
         },
         {
             name: "p_category_id",
@@ -70,10 +30,12 @@ export default function Form({
             step: "0.01",
         },
         {
-            name: "edo",
-            label: "EDO (Expected Delivery Date)",
-            type: "date",
+            name: "edd",
+            label: "EDD",
+            type: "number",
             required: false,
+            placeholder: "Enter EDD",
+            step: "0.01",
         },
         {
             name: "total_stock",

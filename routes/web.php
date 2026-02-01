@@ -416,6 +416,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::delete('/employee-masters/{id}/stores/{assignmentId}', [EmployeeMasterController::class, 'removeStoreAssignment'])
         ->name('employee-master.remove-store');
 
+    // API endpoints for cascading dropdowns
+    Route::get('/branches/by-location', [EmployeeMasterController::class, 'getBranchesByLocation'])
+        ->name('branches.by-location');
+    Route::get('/employees/by-location', [EmployeeMasterController::class, 'getEmployeesByLocation'])
+        ->name('employees.by-location');
+
     // ============================================
 // EMPLOYEE TARGET ROUTES
 // ============================================

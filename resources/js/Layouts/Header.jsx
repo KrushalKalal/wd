@@ -48,12 +48,12 @@ export default function Header({ toggleSidebar }) {
                 {/* RIGHT SIDE */}
                 <div className="d-flex align-items-center gap-3">
                     {/* Notification Icon example */}
-                    <button className="btn btn-sm position-relative border-0 bg-transparent">
+                    {/* <button className="btn btn-sm position-relative border-0 bg-transparent">
                         <i className="fa fa-bell fa-lg"></i>
                         <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
                             3
                         </span>
-                    </button>
+                    </button> */}
 
                     {/* User Dropdown */}
                     <div className="dropdown" ref={dropdownRef}>

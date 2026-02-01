@@ -146,6 +146,7 @@ const Loader = () => (
             <div className="loader-ring" />
             <div className="loader-text">Preparing your dashboard...</div>
         </div>
+
         <style jsx>{`
             .loader-wrapper {
                 position: fixed;
@@ -156,31 +157,45 @@ const Loader = () => (
                 background: #f8fbfd;
                 z-index: 9999;
             }
+
             .loader-card {
                 background: #fff;
-                padding: 28px;
+                padding: 32px 36px;
                 border-radius: 14px;
                 text-align: center;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 16px;
+                box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
             }
+
             .loader-logo {
                 width: 110px;
+                display: block;
             }
+
             .loader-ring {
-                width: 50px;
-                height: 50px;
-                border: 5px solid #ddd;
+                width: 48px;
+                height: 48px;
+                border: 4px solid #ddd;
                 border-top-color: #000;
                 border-radius: 50%;
                 animation: spin 1s linear infinite;
             }
+
+            .loader-text {
+                margin-top: 4px;
+                font-weight: 600;
+                font-size: 14px;
+                color: #333;
+            }
+
             @keyframes spin {
                 to {
                     transform: rotate(360deg);
                 }
-            }
-            .loader-text {
-                margin-top: 10px;
-                font-weight: 600;
             }
         `}</style>
     </div>

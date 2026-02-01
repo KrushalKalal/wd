@@ -14,11 +14,15 @@ export default function MasterForm({
     hasStateDropdown = false,
     hasCityDropdown = false,
     hasAreaDropdown = false,
+    hasZoneDropdown = false,
+    zones = [],
     states = [],
     title,
 }) {
     const { flash, errors: serverErrors } = usePage().props;
     const [errors, setErrors] = useState({});
+    const [availableStates, setAvailableStates] = useState(states || []);
+    const [selectedZone, setSelectedZone] = useState(null);
     const [selectedState, setSelectedState] = useState(null);
     const [selectedCity, setSelectedCity] = useState(null);
     const [selectedArea, setSelectedArea] = useState(null);
@@ -62,6 +66,7 @@ export default function MasterForm({
 
     const { data, setData, post, processing } = useForm(initialData);
 
+    const zoneOptions = zones.map((z) => ({ value: z.id, label: z.name }));
     const stateOptions = states.map((s) => ({ value: s.id, label: s.name }));
     const cityOptions = cities.map((c) => ({ value: c.id, label: c.name }));
     const areaOptions = areas.map((a) => ({ value: a.id, label: a.name }));
@@ -125,6 +130,13 @@ export default function MasterForm({
                 }
             });
 
+            if (hasZoneDropdown && masterData.zone_id) {
+                const zone = zoneOptions.find(
+                    (z) => z.value === masterData.zone_id,
+                );
+                setSelectedZone(zone || null);
+            }
+
             if (hasStateDropdown && masterData.state_id) {
                 const state = stateOptions.find(
                     (s) => s.value === masterData.state_id,
@@ -175,6 +187,39 @@ export default function MasterForm({
             .catch((err) => {
                 console.error("Error fetching areas:", err);
             });
+    };
+
+    const handleZoneChange = (option) => {
+        setSelectedZone(option);
+        setData("zone_id", option?.value || null);
+
+        // Reset dependent dropdowns
+        setData("state_id", null);
+        setData("city_id", null);
+        setData("area_id", null);
+        setSelectedState(null);
+        setSelectedCity(null);
+        setSelectedArea(null);
+        setCities([]);
+        setAreas([]);
+
+        if (option?.value) {
+            // Fetch states for this zone
+            axios
+                .get(`/states/${option.value}`)
+                .then((res) => {
+                    // Update available states
+                    const stateOptions = res.data.map((s) => ({
+                        value: s.id,
+                        label: s.name,
+                    }));
+                    // You'll need to add a state variable for availableStates
+                    // setAvailableStates(res.data);
+                })
+                .catch((err) => {
+                    console.error("Error fetching states for zone:", err);
+                });
+        }
     };
 
     const handleStateChange = (option) => {
@@ -521,7 +566,59 @@ export default function MasterForm({
                 );
 
             case "select":
+                if (field.name === "zone_id") {
+                    return (
+                        <div className={fieldClass} key={field.name}>
+                            <div className="mb-3">
+                                <label className="form-label fw-semibold">
+                                    {field.label}{" "}
+                                    {field.required && (
+                                        <span className="text-danger">*</span>
+                                    )}
+                                </label>
+                                <Select
+                                    options={zoneOptions}
+                                    value={selectedZone}
+                                    onChange={handleZoneChange}
+                                    placeholder={`Select ${field.label}`}
+                                    isClearable
+                                    isSearchable
+                                    menuPortalTarget={document.body}
+                                    styles={{
+                                        control: (base) => ({
+                                            ...base,
+                                            minHeight: "38px",
+                                            borderColor: errors[field.name]
+                                                ? "#dc3545"
+                                                : "#dee2e6",
+                                        }),
+                                        menuPortal: (base) => ({
+                                            ...base,
+                                            zIndex: 9999,
+                                        }),
+                                    }}
+                                />
+                                {errors[field.name] && (
+                                    <div
+                                        className="text-danger mt-1"
+                                        style={{ fontSize: "0.875em" }}
+                                    >
+                                        {Array.isArray(errors[field.name])
+                                            ? errors[field.name][0]
+                                            : errors[field.name]}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    );
+                }
+
                 if (field.name === "state_id") {
+                    const stateOptions = availableStates.map((s) => ({
+                        value: s.id,
+                        label: s.name,
+                    }));
+
                     return (
                         <div className={fieldClass} key={field.name}>
                             <div className="mb-3">

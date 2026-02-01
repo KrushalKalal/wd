@@ -38,19 +38,35 @@ class Store extends Model
     {
         return $this->belongsTo(State::class);
     }
+
     public function city()
     {
         return $this->belongsTo(City::class);
     }
+
     public function area()
     {
         return $this->belongsTo(Area::class);
+    }
+
+    // Access zone through state
+    public function zone()
+    {
+        return $this->hasOneThrough(
+            Zone::class,
+            State::class,
+            'id',
+            'id',
+            'state_id',
+            'zone_id'
+        );
     }
 
     public function storeProducts()
     {
         return $this->hasMany(StoreProduct::class);
     }
+
     public function visits()
     {
         return $this->hasMany(StoreVisit::class);

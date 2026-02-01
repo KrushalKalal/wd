@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\State;
 use App\Models\City;
+use App\Helpers\RoleAccessHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -16,7 +16,10 @@ class CityMasterController extends Controller
 {
     public function index(Request $request)
     {
-        $query = City::with('state');
+        $query = City::with('state.zone');
+
+        // Apply role-based filter
+        $query = RoleAccessHelper::applyRoleFilter($query);
 
         // Search
         if ($request->has('search') && $request->search) {
@@ -37,7 +40,13 @@ class CityMasterController extends Controller
         $perPage = $request->get('per_page', 10);
         $cities = $query->orderBy('name')->paginate($perPage);
 
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        // Get accessible states
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('CityMaster/Index', [
             'records' => $cities,
@@ -52,7 +61,12 @@ class CityMasterController extends Controller
 
     public function create()
     {
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('CityMaster/Form', [
             'states' => $states,
@@ -89,7 +103,13 @@ class CityMasterController extends Controller
     public function edit($id)
     {
         $city = City::findOrFail($id);
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('CityMaster/Form', [
             'city' => $city,
@@ -156,7 +176,12 @@ class CityMasterController extends Controller
     public function downloadTemplate()
     {
         try {
-            $states = State::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
+            $stateIds = RoleAccessHelper::getAccessibleStateIds();
+            $states = State::whereIn('id', $stateIds)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->pluck('name')
+                ->toArray();
 
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
@@ -170,7 +195,7 @@ class CityMasterController extends Controller
             $sheet->getColumnDimension('A')->setAutoSize(true);
             $sheet->getColumnDimension('B')->setAutoSize(true);
 
-            // Create dropdown list for states in column A (rows 2-1000)
+            // Create dropdown for states
             $stateList = '"' . implode(',', $states) . '"';
 
             for ($row = 2; $row <= 1000; $row++) {

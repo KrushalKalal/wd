@@ -30,6 +30,7 @@ export default function MasterIndex({
     hasMonthFilter = false,
     hasYearFilter = false,
     hasStatusFilter = false,
+    hasZoneFilter = false,
     states = [],
     cities = [],
     areas = [],
@@ -45,9 +46,11 @@ export default function MasterIndex({
     monthOptions = [],
     yearOptions = [],
     statusOptions = [],
+    zones = [],
     customActions = null,
     onStateChange = null,
     onCityChange = null,
+    onZoneChange = null,
     title,
     hasToggle = true, // Enable toggle by default
     customRender = null,
@@ -87,6 +90,7 @@ export default function MasterIndex({
     const [selectedMonth, setSelectedMonth] = useState(null);
     const [selectedYear, setSelectedYear] = useState(null);
     const [selectedStatus, setSelectedStatus] = useState(null);
+    const [selectedZone, setSelectedZone] = useState(null);
 
     // Dynamic cities and areas based on selections
     const [availableCities, setAvailableCities] = useState(cities);
@@ -173,6 +177,11 @@ export default function MasterIndex({
         { value: null, label: "All Employees" },
         ...employees.map((e) => ({ value: e.id, label: e.name })),
     ];
+
+     const zoneOptions = [
+         { value: null, label: "All Zones" },
+         ...zones.map((z) => ({ value: z.id, label: z.name })),
+     ];
 
     // Helper function to get nested value
     const getNestedValue = (obj, path) => {
@@ -588,6 +597,38 @@ export default function MasterIndex({
         );
     };
 
+     const handleZoneFilter = (option) => {
+         setSelectedZone(option);
+         setSelectedState(null);
+         setSelectedCity(null);
+         setSelectedArea(null);
+         setAvailableCities([]);
+         setAvailableAreas([]);
+
+         if (onZoneChange) onZoneChange(option);
+
+         router.get(
+             viewBase,
+             {
+                 search: filterText,
+                 per_page: perPage,
+                 zone_id: option?.value,
+                 company_id: selectedCompany?.value,
+                 employee_id: selectedEmployee?.value,
+                 state_id: selectedState?.value,
+                 city_id: selectedCity?.value,
+                 area_id: selectedArea?.value,
+                 company_id: selectedCompany?.value,
+                 store_id: selectedStore?.value,
+                 product_id: selectedProduct?.value,
+                 month: selectedMonth?.value,
+                 year: selectedYear?.value,
+                 status: selectedStatus?.value,
+             },
+             { preserveState: true, preserveScroll: true },
+         );
+     };
+
     const onToggle = (row) => {
         setConfirmBox({
             show: true,
@@ -824,6 +865,7 @@ export default function MasterIndex({
     // Calculate how many filters are active
     const activeFilters = [
         true, // search is always present
+        hasZoneFilter,
         hasCompanyFilter,
         hasStateFilter,
         hasCityFilter,
@@ -914,6 +956,40 @@ export default function MasterIndex({
                                     />
                                 </div>
                             </div>
+
+                            {hasZoneFilter && (
+                                <div className={getFilterColumnClass()}>
+                                    <Select
+                                        options={zoneOptions}
+                                        value={selectedZone}
+                                        onChange={handleZoneFilter}
+                                        placeholder="Filter by Zone"
+                                        isClearable
+                                        styles={{
+                                            control: (base) => ({
+                                                ...base,
+                                                borderColor: "#dee2e6",
+                                                minHeight: "38px",
+                                                height: "38px",
+                                            }),
+                                            valueContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                                padding: "0 8px",
+                                            }),
+                                            input: (base) => ({
+                                                ...base,
+                                                margin: "0",
+                                                padding: "0",
+                                            }),
+                                            indicatorsContainer: (base) => ({
+                                                ...base,
+                                                height: "38px",
+                                            }),
+                                        }}
+                                    />
+                                </div>
+                            )}
 
                             {/* Company Filter */}
                             {hasCompanyFilter && (

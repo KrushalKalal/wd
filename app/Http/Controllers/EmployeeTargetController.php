@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\EmployeeTarget;
 use App\Models\Employee;
+use App\Helpers\RoleAccessHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -13,6 +14,9 @@ class EmployeeTargetController extends Controller
     public function index(Request $request)
     {
         $query = EmployeeTarget::with(['employee.user', 'employee.company', 'employee.branch']);
+
+        // **APPLY ROLE-BASED FILTER**
+        $query = RoleAccessHelper::applyRoleFilter($query);
 
         // Search
         if ($request->has('search') && $request->search) {
@@ -58,7 +62,10 @@ class EmployeeTargetController extends Controller
             return $target;
         });
 
-        $employees = Employee::where('is_active', true)
+        // **GET ACCESSIBLE EMPLOYEES BASED ON ROLE**
+        $employeeIds = RoleAccessHelper::getAccessibleEmployeeIds();
+        $employees = Employee::whereIn('id', $employeeIds)
+            ->where('is_active', true)
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
@@ -79,7 +86,10 @@ class EmployeeTargetController extends Controller
 
     public function create()
     {
-        $employees = Employee::where('is_active', true)
+        // **GET ACCESSIBLE EMPLOYEES BASED ON ROLE**
+        $employeeIds = RoleAccessHelper::getAccessibleEmployeeIds();
+        $employees = Employee::whereIn('id', $employeeIds)
+            ->where('is_active', true)
             ->select('id', 'name')
             ->orderBy('name')
             ->get();
@@ -136,7 +146,11 @@ class EmployeeTargetController extends Controller
     public function edit($id)
     {
         $target = EmployeeTarget::with(['employee'])->findOrFail($id);
-        $employees = Employee::where('is_active', true)
+
+        // **GET ACCESSIBLE EMPLOYEES BASED ON ROLE**
+        $employeeIds = RoleAccessHelper::getAccessibleEmployeeIds();
+        $employees = Employee::whereIn('id', $employeeIds)
+            ->where('is_active', true)
             ->select('id', 'name')
             ->orderBy('name')
             ->get();

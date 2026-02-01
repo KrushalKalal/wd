@@ -11,6 +11,7 @@ use App\Models\State;
 use App\Models\City;
 use App\Models\Area;
 use App\Models\Store;
+use App\Helpers\RoleAccessHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -27,10 +28,13 @@ class OfferMasterController extends Controller
             'categoryOne',
             'categoryTwo',
             'categoryThree',
-            'state',
+            'state.zone',
             'city',
             'area',
         ])->where('is_active', true);
+
+        // Apply role-based filter
+        $query = RoleAccessHelper::applyRoleFilter($query);
 
         // Search
         if ($request->has('search') && $request->search) {
@@ -48,8 +52,15 @@ class OfferMasterController extends Controller
         $perPage = $request->get('per_page', 10);
         $offers = $query->orderBy('start_date', 'desc')->paginate($perPage);
 
+        $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
         return Inertia::render('OfferMaster/Index', [
             'records' => $offers,
+            'categoryOnes' => $categoryOnes,
+            'categoryTwos' => $categoryTwos,
+            'categoryThrees' => $categoryThrees,
             'filters' => [
                 'search' => $request->search,
                 'offer_type' => $request->offer_type,
@@ -64,7 +75,13 @@ class OfferMasterController extends Controller
         $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('OfferMaster/Form', [
             'productCategories' => $productCategories,
@@ -129,7 +146,13 @@ class OfferMasterController extends Controller
         $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         // Load cities if state is selected
         $cities = [];
@@ -252,6 +275,9 @@ class OfferMasterController extends Controller
     {
         $query = Store::where('is_active', true);
 
+        // Apply role-based filter
+        $query = RoleAccessHelper::applyRoleFilter($query);
+
         // Filter by category one
         if ($request->has('category_one_id') && $request->category_one_id) {
             $query->where('category_one_id', $request->category_one_id);
@@ -279,7 +305,13 @@ class OfferMasterController extends Controller
             $categoryOnes = CategoryOne::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
             $categoryTwos = CategoryTwo::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
             $categoryThrees = CategoryThree::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
-            $states = State::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
+
+            $stateIds = RoleAccessHelper::getAccessibleStateIds();
+            $states = State::whereIn('id', $stateIds)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->pluck('name')
+                ->toArray();
 
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();

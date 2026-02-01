@@ -9,6 +9,7 @@ use App\Models\Area;
 use App\Models\CategoryOne;
 use App\Models\CategoryTwo;
 use App\Models\CategoryThree;
+use App\Helpers\RoleAccessHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -20,7 +21,10 @@ class StoreMasterController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Store::with(['state', 'city', 'area', 'categoryOne', 'categoryTwo', 'categoryThree']);
+        $query = Store::with(['state.zone', 'city', 'area', 'categoryOne', 'categoryTwo', 'categoryThree']);
+
+        // Apply role-based filter
+        $query = RoleAccessHelper::applyRoleFilter($query);
 
         // Search
         if ($request->has('search') && $request->search) {
@@ -51,7 +55,6 @@ class StoreMasterController extends Controller
             $query->where('category_one_id', $request->category_one_id);
         }
 
-
         // Filter by category two
         if ($request->has('category_two_id') && $request->category_two_id) {
             $query->where('category_two_id', $request->category_two_id);
@@ -62,14 +65,21 @@ class StoreMasterController extends Controller
             $query->where('category_three_id', $request->category_three_id);
         }
 
-
         $perPage = $request->get('per_page', 10);
         $stores = $query->orderBy('name')->paginate($perPage);
 
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        // Get accessible states for filter
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
         return Inertia::render('StoreMaster/Index', [
             'records' => $stores,
             'states' => $states,
@@ -91,7 +101,13 @@ class StoreMasterController extends Controller
 
     public function create()
     {
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
@@ -146,7 +162,13 @@ class StoreMasterController extends Controller
         $store = Store::with(['state', 'city', 'area', 'categoryOne', 'categoryTwo', 'categoryThree'])
             ->findOrFail($id);
 
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
@@ -222,10 +244,17 @@ class StoreMasterController extends Controller
             return redirect()->back()->with('error', 'Failed to update store status');
         }
     }
+
     public function downloadTemplate()
     {
         try {
-            $states = State::where('is_active', true)->with('cities.areas')->orderBy('name')->get();
+            $stateIds = RoleAccessHelper::getAccessibleStateIds();
+            $states = State::whereIn('id', $stateIds)
+                ->where('is_active', true)
+                ->with('cities.areas')
+                ->orderBy('name')
+                ->get();
+
             $categoryOnes = CategoryOne::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
             $categoryTwos = CategoryTwo::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
             $categoryThrees = CategoryThree::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
@@ -543,23 +572,26 @@ class StoreMasterController extends Controller
 
     public function getAllActiveStores()
     {
-        $stores = Store::query()
+        $query = Store::query()
             ->select([
                 'id',
                 'name',
                 'state_id',
                 'city_id',
                 'area_id',
-                'pin_code',          // optional – add more fields if needed
+                'pin_code',
             ])
             ->with([
                 'state:id,name',
                 'city:id,name',
                 'area:id,name',
             ])
-            ->where('is_active', true)   // ← only active stores – remove if not needed
-            ->orderBy('name')
-            ->get();
+            ->where('is_active', true);
+
+        // Apply role-based filter
+        $query = RoleAccessHelper::applyRoleFilter($query);
+
+        $stores = $query->orderBy('name')->get();
 
         return response()->json($stores);
     }

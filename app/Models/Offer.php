@@ -74,6 +74,19 @@ class Offer extends Model
         return $this->belongsTo(Area::class);
     }
 
+    // Access zone through state
+    public function zone()
+    {
+        return $this->hasOneThrough(
+            Zone::class,
+            State::class,
+            'id',
+            'id',
+            'state_id',
+            'zone_id'
+        );
+    }
+
     // Get stores based on store_ids
     public function stores()
     {

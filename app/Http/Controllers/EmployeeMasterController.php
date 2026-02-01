@@ -7,11 +7,13 @@ use App\Models\User;
 use App\Models\Company;
 use App\Models\Branch;
 use App\Models\Department;
+use App\Models\Zone;
 use App\Models\State;
 use App\Models\City;
 use App\Models\Area;
 use App\Models\Store;
 use App\Models\EmployeeStoreAssignment;
+use App\Helpers\RoleAccessHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -33,12 +35,16 @@ class EmployeeMasterController extends Controller
             'company',
             'branch',
             'department',
+            'zone',
             'state',
             'city',
             'area',
             'manager',
             'activeStoreAssignments.store'
         ]);
+
+        // Apply role-based filter
+        $query = RoleAccessHelper::applyRoleFilter($query);
 
         // Search
         if ($request->has('search') && $request->search) {
@@ -94,7 +100,13 @@ class EmployeeMasterController extends Controller
         $companies = Company::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $departments = Department::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('EmployeeMaster/Index', [
             'records' => $employees,
@@ -120,7 +132,21 @@ class EmployeeMasterController extends Controller
         $companies = Company::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $departments = Department::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
+        $zoneIds = RoleAccessHelper::getAccessibleZoneIds();
+        $zones = Zone::whereIn('id', $zoneIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         $employees = Employee::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $roles = Role::all();
 
@@ -128,6 +154,7 @@ class EmployeeMasterController extends Controller
             'companies' => $companies,
             'branches' => $branches,
             'departments' => $departments,
+            'zones' => $zones,
             'states' => $states,
             'employees' => $employees,
             'roles' => $roles,
@@ -145,6 +172,7 @@ class EmployeeMasterController extends Controller
             'company_id' => 'nullable|exists:companies,id',
             'branch_id' => 'nullable|exists:branches,id',
             'dept_id' => 'nullable|exists:departments,id',
+            'zone_id' => 'nullable|exists:zones,id',
             'state_id' => 'nullable|exists:states,id',
             'city_id' => 'nullable|exists:cities,id',
             'area_id' => 'nullable|exists:areas,id',
@@ -216,7 +244,7 @@ class EmployeeMasterController extends Controller
 
     public function edit($id)
     {
-        $employee = Employee::with(['user.roles', 'company', 'branch', 'department', 'state', 'city', 'area', 'manager'])
+        $employee = Employee::with(['user.roles', 'company', 'branch', 'department', 'zone', 'state', 'city', 'area', 'manager'])
             ->findOrFail($id);
 
         // Format for form
@@ -226,7 +254,21 @@ class EmployeeMasterController extends Controller
         $companies = Company::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $branches = Branch::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $departments = Department::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
+        $zoneIds = RoleAccessHelper::getAccessibleZoneIds();
+        $zones = Zone::whereIn('id', $zoneIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
         $employees = Employee::where('is_active', true)->where('id', '!=', $id)->select('id', 'name')->orderBy('name')->get();
         $roles = Role::all();
 
@@ -235,6 +277,7 @@ class EmployeeMasterController extends Controller
             'companies' => $companies,
             'branches' => $branches,
             'departments' => $departments,
+            'zones' => $zones,
             'states' => $states,
             'employees' => $employees,
             'roles' => $roles,
@@ -254,6 +297,7 @@ class EmployeeMasterController extends Controller
             'company_id' => 'nullable|exists:companies,id',
             'branch_id' => 'nullable|exists:branches,id',
             'dept_id' => 'nullable|exists:departments,id',
+            'zone_id' => 'nullable|exists:zones,id',
             'state_id' => 'nullable|exists:states,id',
             'city_id' => 'nullable|exists:cities,id',
             'area_id' => 'nullable|exists:areas,id',
@@ -373,10 +417,106 @@ class EmployeeMasterController extends Controller
         }
     }
 
+    // Store Assignment Methods
+    public function getAssignedStores($id)
+    {
+        $employee = Employee::findOrFail($id);
+        $assignments = EmployeeStoreAssignment::where('employee_id', $id)
+            ->where('is_active', true)
+            ->with('store')
+            ->get();
+
+        return response()->json($assignments);
+    }
+
+    public function assignStores(Request $request, $id)
+    {
+        $request->validate([
+            'store_ids' => 'required|array',
+            'store_ids.*' => 'exists:stores,id',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $employee = Employee::findOrFail($id);
+
+            // Deactivate all current assignments
+            EmployeeStoreAssignment::where('employee_id', $id)
+                ->where('is_active', true)
+                ->update([
+                    'is_active' => false,
+                    'removed_date' => now()
+                ]);
+
+            // Create new assignments
+            foreach ($request->store_ids as $storeId) {
+                EmployeeStoreAssignment::create([
+                    'employee_id' => $id,
+                    'store_id' => $storeId,
+                    'assigned_date' => now(),
+                    'is_active' => true,
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Stores assigned successfully'
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            Log::error('Store assignment failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to assign stores'
+            ], 500);
+        }
+    }
+
+    public function removeStoreAssignment($id, $assignmentId)
+    {
+        try {
+            $assignment = EmployeeStoreAssignment::where('employee_id', $id)
+                ->where('id', $assignmentId)
+                ->firstOrFail();
+
+            $assignment->update([
+                'is_active' => false,
+                'removed_date' => now()
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Store assignment removed successfully'
+            ]);
+        } catch (\Throwable $e) {
+            Log::error('Remove assignment failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to remove store assignment'
+            ], 500);
+        }
+    }
+
     public function downloadTemplate()
     {
         try {
-            $states = State::where('is_active', true)->with('cities.areas')->orderBy('name')->get();
+            $stateIds = RoleAccessHelper::getAccessibleStateIds();
+            $states = State::whereIn('id', $stateIds)
+                ->where('is_active', true)
+                ->with('cities.areas')
+                ->orderBy('name')
+                ->get();
+
+            $zoneIds = RoleAccessHelper::getAccessibleZoneIds();
+            $zones = Zone::whereIn('id', $zoneIds)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->pluck('name')
+                ->toArray();
+
             $companies = Company::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
             $branches = Branch::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
             $departments = Department::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
@@ -397,6 +537,7 @@ class EmployeeMasterController extends Controller
                 'Company',
                 'Branch',
                 'Department',
+                'Zone',
                 'State',
                 'City',
                 'Area',
@@ -425,7 +566,7 @@ class EmployeeMasterController extends Controller
                     'startColor' => ['argb' => 'FFE0E0E0']
                 ]
             ];
-            $sheet->getStyle('A1:U1')->applyFromArray($headerStyle);
+            $sheet->getStyle('A1:V1')->applyFromArray($headerStyle);
 
             // Create hidden data sheet
             $dataSheet = $spreadsheet->createSheet();
@@ -436,6 +577,7 @@ class EmployeeMasterController extends Controller
             $companyList = '"' . implode(',', $companies) . '"';
             $branchList = '"' . implode(',', $branches) . '"';
             $deptList = '"' . implode(',', $departments) . '"';
+            $zoneList = '"' . implode(',', $zones) . '"';
             $managerList = '"' . implode(',', $employees) . '"';
 
             // States dropdown
@@ -533,33 +675,43 @@ class EmployeeMasterController extends Controller
                     $validation->setFormula1($deptList);
                 }
 
-                // State dropdown (Column I)
-                $validation = $sheet->getCell('I' . $row)->getDataValidation();
+                // Zone dropdown (Column I)
+                if (!empty($zones)) {
+                    $validation = $sheet->getCell('I' . $row)->getDataValidation();
+                    $validation->setType(DataValidation::TYPE_LIST);
+                    $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
+                    $validation->setAllowBlank(true);
+                    $validation->setShowDropDown(true);
+                    $validation->setFormula1($zoneList);
+                }
+
+                // State dropdown (Column J)
+                $validation = $sheet->getCell('J' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
                 $validation->setAllowBlank(true);
                 $validation->setShowDropDown(true);
                 $validation->setFormula1($stateList);
 
-                // City dropdown (Column J) - dynamic
-                $validation = $sheet->getCell('J' . $row)->getDataValidation();
-                $validation->setType(DataValidation::TYPE_LIST);
-                $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
-                $validation->setAllowBlank(true);
-                $validation->setShowDropDown(true);
-                $validation->setFormula1('INDIRECT("Cities_"&SUBSTITUTE(I' . $row . '," ","_"))');
-
-                // Area dropdown (Column K) - dynamic
+                // City dropdown (Column K) - dynamic
                 $validation = $sheet->getCell('K' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
                 $validation->setAllowBlank(true);
                 $validation->setShowDropDown(true);
-                $validation->setFormula1('INDIRECT("Areas_"&SUBSTITUTE(I' . $row . '," ","_")&"_"&SUBSTITUTE(J' . $row . '," ","_"))');
+                $validation->setFormula1('INDIRECT("Cities_"&SUBSTITUTE(J' . $row . '," ","_"))');
 
-                // Manager dropdown (Column U)
+                // Area dropdown (Column L) - dynamic
+                $validation = $sheet->getCell('L' . $row)->getDataValidation();
+                $validation->setType(DataValidation::TYPE_LIST);
+                $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
+                $validation->setAllowBlank(true);
+                $validation->setShowDropDown(true);
+                $validation->setFormula1('INDIRECT("Areas_"&SUBSTITUTE(J' . $row . '," ","_")&"_"&SUBSTITUTE(K' . $row . '," ","_"))');
+
+                // Manager dropdown (Column V)
                 if (!empty($employees)) {
-                    $validation = $sheet->getCell('U' . $row)->getDataValidation();
+                    $validation = $sheet->getCell('V' . $row)->getDataValidation();
                     $validation->setType(DataValidation::TYPE_LIST);
                     $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
                     $validation->setAllowBlank(true);
@@ -569,7 +721,7 @@ class EmployeeMasterController extends Controller
             }
 
             // Auto-size columns
-            foreach (range('A', 'U') as $col) {
+            foreach (range('A', 'V') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
 
@@ -614,19 +766,20 @@ class EmployeeMasterController extends Controller
                 $companyName = trim($row['F'] ?? '');
                 $branchName = trim($row['G'] ?? '');
                 $deptName = trim($row['H'] ?? '');
-                $stateName = trim($row['I'] ?? '');
-                $cityName = trim($row['J'] ?? '');
-                $areaName = trim($row['K'] ?? '');
-                $pinCode = trim($row['L'] ?? '');
-                $address = trim($row['M'] ?? '');
-                $contact1 = trim($row['N'] ?? '');
-                $contact2 = trim($row['O'] ?? '');
-                $email1 = trim($row['P'] ?? '');
-                $email2 = trim($row['Q'] ?? '');
-                $aadhar = trim($row['R'] ?? '');
-                $dob = trim($row['S'] ?? '');
-                $doj = trim($row['T'] ?? '');
-                $managerName = trim($row['U'] ?? '');
+                $zoneName = trim($row['I'] ?? '');
+                $stateName = trim($row['J'] ?? '');
+                $cityName = trim($row['K'] ?? '');
+                $areaName = trim($row['L'] ?? '');
+                $pinCode = trim($row['M'] ?? '');
+                $address = trim($row['N'] ?? '');
+                $contact1 = trim($row['O'] ?? '');
+                $contact2 = trim($row['P'] ?? '');
+                $email1 = trim($row['Q'] ?? '');
+                $email2 = trim($row['R'] ?? '');
+                $aadhar = trim($row['S'] ?? '');
+                $dob = trim($row['T'] ?? '');
+                $doj = trim($row['U'] ?? '');
+                $managerName = trim($row['V'] ?? '');
 
                 if (!$empName || !$email || !$password || !$roleName) {
                     $errors[] = "Row " . ($index + 2) . ": Name, Email, Password, and Role are required";
@@ -651,6 +804,7 @@ class EmployeeMasterController extends Controller
                 $companyId = null;
                 $branchId = null;
                 $deptId = null;
+                $zoneId = null;
                 $stateId = null;
                 $cityId = null;
                 $areaId = null;
@@ -669,6 +823,11 @@ class EmployeeMasterController extends Controller
                 if ($deptName) {
                     $dept = Department::whereRaw('LOWER(name) = ?', [strtolower($deptName)])->first();
                     $deptId = $dept?->id;
+                }
+
+                if ($zoneName) {
+                    $zone = Zone::whereRaw('LOWER(name) = ?', [strtolower($zoneName)])->first();
+                    $zoneId = $zone?->id;
                 }
 
                 if ($stateName) {
@@ -716,6 +875,7 @@ class EmployeeMasterController extends Controller
                         'company_id' => $companyId,
                         'branch_id' => $branchId,
                         'dept_id' => $deptId,
+                        'zone_id' => $zoneId,
                         'state_id' => $stateId,
                         'city_id' => $cityId,
                         'area_id' => $areaId,
@@ -749,91 +909,6 @@ class EmployeeMasterController extends Controller
         } catch (\Throwable $e) {
             Log::error('Employee upload failed: ' . $e->getMessage());
             return back()->with('error', 'Excel upload failed: ' . $e->getMessage());
-        }
-    }
-
-    // Get assigned stores for an employee
-    public function getAssignedStores($id)
-    {
-        $employee = Employee::findOrFail($id);
-        $assignments = EmployeeStoreAssignment::where('employee_id', $id)
-            ->where('is_active', true)
-            ->with('store')
-            ->get();
-
-        return response()->json($assignments);
-    }
-
-    // Assign stores to employee
-    public function assignStores(Request $request, $id)
-    {
-        $request->validate([
-            'store_ids' => 'required|array',
-            'store_ids.*' => 'exists:stores,id',
-        ]);
-
-        try {
-            DB::beginTransaction();
-
-            $employee = Employee::findOrFail($id);
-
-            // Deactivate all current assignments
-            EmployeeStoreAssignment::where('employee_id', $id)
-                ->where('is_active', true)
-                ->update([
-                    'is_active' => false,
-                    'removed_date' => now()
-                ]);
-
-            // Create new assignments
-            foreach ($request->store_ids as $storeId) {
-                EmployeeStoreAssignment::create([
-                    'employee_id' => $id,
-                    'store_id' => $storeId,
-                    'assigned_date' => now(),
-                    'is_active' => true,
-                ]);
-            }
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Stores assigned successfully'
-            ]);
-        } catch (\Throwable $e) {
-            DB::rollBack();
-            Log::error('Store assignment failed: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to assign stores'
-            ], 500);
-        }
-    }
-
-    // Remove store assignment
-    public function removeStoreAssignment($id, $assignmentId)
-    {
-        try {
-            $assignment = EmployeeStoreAssignment::where('employee_id', $id)
-                ->where('id', $assignmentId)
-                ->firstOrFail();
-
-            $assignment->update([
-                'is_active' => false,
-                'removed_date' => now()
-            ]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Store assignment removed successfully'
-            ]);
-        } catch (\Throwable $e) {
-            Log::error('Remove assignment failed: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Failed to remove store assignment'
-            ], 500);
         }
     }
 }

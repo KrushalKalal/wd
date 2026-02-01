@@ -3,8 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Spatie\Permission\Traits\HasRoles;
-
 
 class Employee extends Model
 {
@@ -14,6 +12,7 @@ class Employee extends Model
         'company_id',
         'branch_id',
         'dept_id',
+        'zone_id',  // ADDED
         'state_id',
         'city_id',
         'area_id',
@@ -61,6 +60,11 @@ class Employee extends Model
         return $this->belongsTo(Department::class, 'dept_id');
     }
 
+    public function zone()
+    {
+        return $this->belongsTo(Zone::class);
+    }
+
     public function state()
     {
         return $this->belongsTo(State::class);
@@ -76,7 +80,6 @@ class Employee extends Model
         return $this->belongsTo(Area::class);
     }
 
-    // Reporting / Team
     public function manager()
     {
         return $this->belongsTo(Employee::class, 'reporting_to');
@@ -87,7 +90,6 @@ class Employee extends Model
         return $this->hasMany(Employee::class, 'reporting_to');
     }
 
-    // Store Assignments
     public function storeAssignments()
     {
         return $this->hasMany(EmployeeStoreAssignment::class);
@@ -106,7 +108,6 @@ class Employee extends Model
             ->withTimestamps();
     }
 
-    // Visits & Transactions
     public function visits()
     {
         return $this->hasMany(StoreVisit::class);
@@ -117,7 +118,6 @@ class Employee extends Model
         return $this->hasMany(StockTransaction::class);
     }
 
-    // Targets
     public function targets()
     {
         return $this->hasMany(EmployeeTarget::class);
@@ -130,7 +130,6 @@ class Employee extends Model
             ->where('year', now()->year);
     }
 
-    // Scopes
     public function scopeActive($query)
     {
         return $query->where('is_active', true);

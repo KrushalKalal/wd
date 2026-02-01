@@ -12,7 +12,6 @@ class Area extends Model
         'is_active' => 'boolean',
     ];
 
-
     public function state()
     {
         return $this->belongsTo(State::class);
@@ -21,6 +20,19 @@ class Area extends Model
     public function city()
     {
         return $this->belongsTo(City::class);
+    }
+
+    // Access zone through city->state
+    public function zone()
+    {
+        return $this->hasOneThrough(
+            Zone::class,
+            State::class,
+            'id',
+            'id',
+            'state_id',
+            'zone_id'
+        );
     }
 
     public function companies()

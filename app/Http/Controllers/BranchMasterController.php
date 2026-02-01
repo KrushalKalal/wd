@@ -7,6 +7,7 @@ use App\Models\Company;
 use App\Models\State;
 use App\Models\City;
 use App\Models\Area;
+use App\Helpers\RoleAccessHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -18,7 +19,10 @@ class BranchMasterController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Branch::with(['company', 'state', 'city', 'area']);
+        $query = Branch::with(['company', 'state.zone', 'city', 'area']);
+
+        // Apply role-based filter
+        $query = RoleAccessHelper::applyRoleFilter($query);
 
         // Search
         if ($request->has('search') && $request->search) {
@@ -54,8 +58,18 @@ class BranchMasterController extends Controller
         $perPage = $request->get('per_page', 10);
         $branches = $query->orderBy('name')->paginate($perPage);
 
-        $companies = Company::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        // Get accessible data
+        $companies = Company::where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('BranchMaster/Index', [
             'records' => $branches,
@@ -74,8 +88,17 @@ class BranchMasterController extends Controller
 
     public function create()
     {
-        $companies = Company::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        $companies = Company::where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('BranchMaster/Form', [
             'companies' => $companies,
@@ -117,8 +140,18 @@ class BranchMasterController extends Controller
     public function edit($id)
     {
         $branch = Branch::with(['company', 'state', 'city', 'area'])->findOrFail($id);
-        $companies = Company::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
+        $companies = Company::where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('BranchMaster/Form', [
             'branch' => $branch,
@@ -184,12 +217,17 @@ class BranchMasterController extends Controller
         }
     }
 
-
     public function downloadTemplate()
     {
         try {
             $companies = Company::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
-            $states = State::where('is_active', true)->with('cities.areas')->orderBy('name')->get();
+
+            $stateIds = RoleAccessHelper::getAccessibleStateIds();
+            $states = State::whereIn('id', $stateIds)
+                ->where('is_active', true)
+                ->with('cities.areas')
+                ->orderBy('name')
+                ->get();
 
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
@@ -236,7 +274,7 @@ class BranchMasterController extends Controller
             $stateNames = $states->pluck('name')->toArray();
             $stateList = '"' . implode(',', $stateNames) . '"';
 
-            // Cities and Areas (same as Company controller)
+            // Cities
             $dataCol = 1;
             foreach ($states as $state) {
                 $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($dataCol);
@@ -390,7 +428,7 @@ class BranchMasterController extends Controller
                 $cityId = null;
                 $areaId = null;
 
-                // Find location details (same as Company upload)
+                // Find location details
                 if ($stateName) {
                     $state = State::whereRaw('LOWER(name) = ?', [strtolower($stateName)])->first();
                     if (!$state) {

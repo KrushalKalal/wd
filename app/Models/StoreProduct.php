@@ -30,6 +30,19 @@ class StoreProduct extends Model
         return $this->belongsTo(Product::class);
     }
 
+    // Access zone through store -> state -> zone
+    public function zone()
+    {
+        return $this->hasOneThrough(
+            Zone::class,
+            State::class,
+            'id',           // Foreign key on states table
+            'id',           // Foreign key on zones table
+            'state_id',     // Local key on stores table (through store relationship)
+            'zone_id'       // Local key on states table
+        );
+    }
+
     // Get available stock (current - pending returns)
     public function getAvailableStockAttribute()
     {

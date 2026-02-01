@@ -25,11 +25,11 @@ class Branch extends Model
         'is_active' => 'boolean',
     ];
 
-
     public function company()
     {
         return $this->belongsTo(Company::class);
     }
+
     public function employees()
     {
         return $this->hasMany(Employee::class);
@@ -48,6 +48,19 @@ class Branch extends Model
     public function area()
     {
         return $this->belongsTo(Area::class);
+    }
+
+    // Access zone through state
+    public function zone()
+    {
+        return $this->hasOneThrough(
+            Zone::class,
+            State::class,
+            'id',
+            'id',
+            'state_id',
+            'zone_id'
+        );
     }
 
     public function scopeActive($query)

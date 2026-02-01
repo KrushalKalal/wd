@@ -6,6 +6,7 @@ export default function Form({
     companies = [],
     branches = [],
     departments = [],
+    zones = [],
     states = [],
     employees = [],
     roles = [],
@@ -84,7 +85,12 @@ export default function Form({
             options: departmentOptions,
         },
 
-        // Location
+        // Location - NOW WITH ZONE
+        {
+            name: "zone_id",
+            label: "Zone",
+            type: "select",
+        },
         {
             name: "state_id",
             label: "State",
@@ -190,12 +196,13 @@ export default function Form({
             masterData={employee}
             viewBase="/employee-masters"
             fields={fields}
+            hasZoneDropdown={true}
             hasStateDropdown={true}
             hasCityDropdown={true}
             hasAreaDropdown={true}
+            zones={zones}
             states={states}
             title="Employee Management"
         />
     );
 }
-    

@@ -6,12 +6,16 @@ use Illuminate\Database\Eloquent\Model;
 
 class State extends Model
 {
-    protected $fillable = ['name', 'is_active',];
+    protected $fillable = ['zone_id', 'name', 'is_active'];
 
     protected $casts = [
         'is_active' => 'boolean',
     ];
 
+    public function zone()
+    {
+        return $this->belongsTo(Zone::class);
+    }
 
     public function cities()
     {

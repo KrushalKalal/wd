@@ -6,6 +6,7 @@ use App\Models\StoreProduct;
 use App\Models\Store;
 use App\Models\Product;
 use App\Models\State;
+use App\Helpers\RoleAccessHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -18,11 +19,14 @@ class StoreProductController extends Controller
     public function index(Request $request)
     {
         $query = StoreProduct::with([
-            'store.state',
+            'store.state.zone',
             'store.city',
             'store.area',
             'product'
         ]);
+
+        // Apply role-based filter (filters through store relationship)
+        $query = RoleAccessHelper::applyRoleFilter($query);
 
         // Search
         if ($request->has('search') && $request->search) {
@@ -69,9 +73,21 @@ class StoreProductController extends Controller
         $perPage = $request->get('per_page', 10);
         $storeProducts = $query->orderBy('id', 'desc')->paginate($perPage);
 
-        $stores = Store::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        // Get accessible stores based on role
+        $storesQuery = Store::where('is_active', true);
+        $storesQuery = RoleAccessHelper::applyRoleFilter($storesQuery);
+        $stores = $storesQuery->select('id', 'name')->orderBy('name')->get();
+
+        // Get all products
         $products = Product::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
+        // Get accessible states based on role
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('StoreProduct/Index', [
             'records' => $storeProducts,
@@ -92,7 +108,12 @@ class StoreProductController extends Controller
 
     public function create()
     {
-        $stores = Store::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        // Get accessible stores based on role
+        $storesQuery = Store::where('is_active', true);
+        $storesQuery = RoleAccessHelper::applyRoleFilter($storesQuery);
+        $stores = $storesQuery->select('id', 'name')->orderBy('name')->get();
+
+        // Get all products
         $products = Product::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('StoreProduct/Form', [
@@ -142,7 +163,13 @@ class StoreProductController extends Controller
     public function edit($id)
     {
         $storeProduct = StoreProduct::with(['store', 'product'])->findOrFail($id);
-        $stores = Store::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
+        // Get accessible stores based on role
+        $storesQuery = Store::where('is_active', true);
+        $storesQuery = RoleAccessHelper::applyRoleFilter($storesQuery);
+        $stores = $storesQuery->select('id', 'name')->orderBy('name')->get();
+
+        // Get all products
         $products = Product::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
 
         return Inertia::render('StoreProduct/Form', [
@@ -207,7 +234,12 @@ class StoreProductController extends Controller
     public function downloadTemplate()
     {
         try {
-            $stores = Store::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
+            // Get accessible stores based on role
+            $storesQuery = Store::where('is_active', true);
+            $storesQuery = RoleAccessHelper::applyRoleFilter($storesQuery);
+            $stores = $storesQuery->orderBy('name')->pluck('name')->toArray();
+
+            // Get all products
             $products = Product::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
 
             $spreadsheet = new Spreadsheet();
@@ -307,12 +339,14 @@ class StoreProductController extends Controller
                     continue;
                 }
 
-                // Find store
-                $store = Store::where('is_active', true)
-                    ->whereRaw('LOWER(name) = ?', [strtolower($storeName)])
-                    ->first();
+                // Find store (with role-based access check)
+                $storeQuery = Store::where('is_active', true)
+                    ->whereRaw('LOWER(name) = ?', [strtolower($storeName)]);
+                $storeQuery = RoleAccessHelper::applyRoleFilter($storeQuery);
+                $store = $storeQuery->first();
+
                 if (!$store) {
-                    $errors[] = "Row " . ($index + 2) . ": Store '{$storeName}' not found";
+                    $errors[] = "Row " . ($index + 2) . ": Store '{$storeName}' not found or not accessible";
                     continue;
                 }
 

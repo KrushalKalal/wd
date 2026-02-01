@@ -1,7 +1,13 @@
 import MasterForm from "../Masters/MasterForm";
 
-export default function Form({ auth, state = null }) {
+export default function Form({ auth, state = null, zones = [] }) {
     const fields = [
+        {
+            name: "zone_id",
+            label: "Zone",
+            type: "select",
+            required: true,
+        },
         {
             name: "name",
             label: "State Name",
@@ -18,6 +24,8 @@ export default function Form({ auth, state = null }) {
             masterData={state}
             viewBase="/state-masters"
             fields={fields}
+            hasZoneDropdown={true}
+            zones={zones}
             title="State Master"
         />
     );

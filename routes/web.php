@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\ZoneMasterController;
 use App\Http\Controllers\StateMasterController;
 use App\Http\Controllers\CityMasterController;
 use App\Http\Controllers\AreaMasterController;
@@ -21,6 +22,7 @@ use App\Http\Controllers\EmployeeMasterController;
 use App\Http\Controllers\EmployeeTargetController;
 use App\Http\Controllers\StockApprovalController;
 use App\Http\Controllers\StoreVisitController;
+use App\Http\Controllers\StoreManagementController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -36,6 +38,32 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+
+    // ============================================
+    // ZONE MASTER ROUTES
+    // ============================================
+    Route::get('/zone-masters', [ZoneMasterController::class, 'index'])
+        ->name('zone-master.index');
+    Route::get('/zone-masters/create', [ZoneMasterController::class, 'create'])
+        ->name('zone-master.create');
+    Route::post('/zone-masters', [ZoneMasterController::class, 'store'])
+        ->name('zone-master.store');
+    Route::get('/zone-masters/{id}/edit', [ZoneMasterController::class, 'edit'])
+        ->name('zone-master.edit');
+    Route::post('/zone-masters/{id}', [ZoneMasterController::class, 'update'])
+        ->name('zone-master.update');
+    Route::delete('/zone-masters/{id}', [ZoneMasterController::class, 'destroy'])
+        ->name('zone-master.destroy');
+    Route::post('/zone-masters/{id}/toggle', [ZoneMasterController::class, 'toggleStatus'])
+        ->name('zone-master.toggle');
+    Route::get('/zone-master/download-template', [ZoneMasterController::class, 'downloadTemplate'])
+        ->name('zone-master.download-template');
+    Route::post('/zone-master/upload', [ZoneMasterController::class, 'uploadExcel'])
+        ->name('zone-master.upload');
+
+    // API endpoint for cascading dropdown
+    Route::get('/states/{zoneId}', [ZoneMasterController::class, 'getStatesByZone'])
+        ->name('states.by-zone');
 
     // ============================================
 // STATE MASTER ROUTES
@@ -441,6 +469,22 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/stock-approvals/bulk-approve', [StockApprovalController::class, 'bulkApprove'])->name('stock-approvals.bulk-approve');
     Route::get('/stock-approvals/statistics', [StockApprovalController::class, 'statistics'])->name('stock-approvals.statistics');
 
+    // Main store management routes
+    Route::get('/store-management', [StoreManagementController::class, 'index'])->name('store-management.index');
+    Route::get('/store-management/{storeId}', [StoreManagementController::class, 'show'])->name('store-management.show');
+
+    // Survey review actions
+    Route::post('/store-management/surveys/{answerId}/review', [StoreManagementController::class, 'reviewSurveyAnswer'])->name('store-management.survey.review');
+
+    // Stock transaction actions
+    Route::post('/store-management/stock/{transactionId}/approve', [StoreManagementController::class, 'approveStock'])->name('store-management.stock.approve');
+    Route::post('/store-management/stock/{transactionId}/reject', [StoreManagementController::class, 'rejectStock'])->name('store-management.stock.reject');
+    Route::post('/store-management/stock/{transactionId}/deliver', [StoreManagementController::class, 'markStockDelivered'])->name('store-management.stock.deliver');
+    Route::post('/store-management/stock/{transactionId}/return', [StoreManagementController::class, 'markStockReturned'])->name('store-management.stock.return');
+
+    // Bulk actions
+    Route::post('/store-management/visits/{visitId}/bulk-approve', [StoreManagementController::class, 'bulkApproveVisit'])->name('store-management.visit.bulk-approve');
+    Route::post('/store-management/surveys/{visitId}/bulk-approve', [StoreManagementController::class, 'bulkApproveSurveys'])->name('store-management.survey.bulk-approve');
 });
 
 // })->middleware(['auth', 'verified'])->name('dashboard');

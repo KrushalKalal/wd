@@ -12,10 +12,22 @@ class City extends Model
         'is_active' => 'boolean',
     ];
 
-
     public function state()
     {
         return $this->belongsTo(State::class);
+    }
+
+    // Access zone through state
+    public function zone()
+    {
+        return $this->hasOneThrough(
+            Zone::class,
+            State::class,
+            'id',
+            'id',
+            'state_id',
+            'zone_id'
+        );
     }
 
     public function areas()

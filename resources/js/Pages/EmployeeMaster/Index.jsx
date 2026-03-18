@@ -33,38 +33,96 @@ export default function Index({
         message: "",
     });
 
-    // Enhanced columns - move images/assign to table columns
+    // Enhanced columns with Promocode
     const columns = [
-        { key: "name", label: "Name", width: "180px" },
-        { key: "user.email", label: "Email", width: "200px" },
+        { key: "name", label: "Name", width: "150px" },
+        { key: "user.email", label: "Email", width: "180px" },
         {
             key: "role_name",
             label: "Role",
-            width: "130px",
+            width: "120px",
             type: "badge",
             color: "dark",
         },
-        { key: "designation", label: "Designation", width: "140px" },
-        { key: "contact_number_1", label: "Contact", width: "120px" },
-        { key: "manager_name", label: "Reporting", width: "130px" },
-        // NEW: Images column
+        { key: "designation", label: "Designation", width: "130px" },
+        { key: "contact_number_1", label: "Contact", width: "110px" },
+        { key: "manager_name", label: "Reporting", width: "120px" },
+        // NEW: Promocode column
+        {
+            key: "promocode_info",
+            label: "Promocode",
+            width: "150px",
+            type: "custom",
+        },
         {
             key: "images",
             label: "Images",
-            width: "100px",
+            width: "90px",
             type: "custom",
         },
-        // NEW: Stores column (for Sales only)
         {
             key: "stores_assigned",
             label: "Stores",
-            width: "100px",
+            width: "90px",
             type: "custom",
         },
     ];
 
-    // Custom render for each row - handle images and stores columns
+    // Custom render for each row
     const customRender = (row, column) => {
+        // NEW: Promocode column
+        if (column.key === "promocode_info") {
+            if (row.promocode) {
+                return (
+                    <div>
+                        <div className="d-flex align-items-center gap-2">
+                            <code className="bg-dark text-white px-2 py-1 rounded small">
+                                {row.promocode}
+                            </code>
+
+                            <button
+                                className={`btn btn-sm ${
+                                    row.promocode_active
+                                        ? "btn-success"
+                                        : "btn-outline-secondary"
+                                }`}
+                                title={
+                                    row.promocode_active
+                                        ? "Click to deactivate promocode"
+                                        : "Click to activate promocode"
+                                }
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    togglePromocode(
+                                        row.id,
+                                        row.promocode_active,
+                                    );
+                                }}
+                            >
+                                {row.promocode_active ? (
+                                    <>
+                                        <i className="fas fa-toggle-on me-1"></i>{" "}
+                                    </>
+                                ) : (
+                                    <>
+                                        <i className="fas fa-toggle-off me-1"></i>{" "}
+                                    </>
+                                )}
+                            </button>
+                        </div>
+
+                        {row.promocode_active &&
+                            row.promocode_discount_percentage > 0 && (
+                                <small className="text-success fw-bold">
+                                    {row.promocode_discount_percentage}% OFF
+                                </small>
+                            )}
+                    </div>
+                );
+            }
+            return <span className="text-muted small">—</span>;
+        }
+
         // Images column
         if (column.key === "images") {
             return (
@@ -110,7 +168,7 @@ export default function Index({
             );
         }
 
-        // Stores column (only for Sales employees)
+        // Stores column
         if (column.key === "stores_assigned") {
             const isSalesEmployee =
                 row.role_name?.toLowerCase()?.includes("sales") || false;
@@ -203,7 +261,6 @@ export default function Index({
                 });
                 setSelectedStores([]);
 
-                // Reload to update counts
                 setTimeout(() => {
                     window.location.reload();
                 }, 1000);
@@ -214,6 +271,26 @@ export default function Index({
                 show: true,
                 type: "error",
                 message: "Failed to save store assignment. Please try again.",
+            });
+        }
+    };
+
+    const togglePromocode = async (employeeId, currentStatus) => {
+        try {
+            const res = await axios.post(
+                `/employee-masters/${employeeId}/toggle-promocode`,
+            );
+
+            if (res.data?.success) {
+                // Simple refresh (or you can update state if you manage records locally)
+                window.location.reload();
+            }
+        } catch (err) {
+            console.error("Failed to toggle promocode:", err);
+            setAlertModal({
+                show: true,
+                type: "error",
+                message: "Failed to update promocode status",
             });
         }
     };

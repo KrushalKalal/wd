@@ -54,6 +54,8 @@ export default function MasterIndex({
     title,
     hasToggle = true, // Enable toggle by default
     customRender = null,
+    hideAddButton = false,
+    hideDelete = false,
 }) {
     const { flash } = usePage().props;
     const records = data?.data || [];
@@ -178,10 +180,10 @@ export default function MasterIndex({
         ...employees.map((e) => ({ value: e.id, label: e.name })),
     ];
 
-     const zoneOptions = [
-         { value: null, label: "All Zones" },
-         ...zones.map((z) => ({ value: z.id, label: z.name })),
-     ];
+    const zoneOptions = [
+        { value: null, label: "All Zones" },
+        ...zones.map((z) => ({ value: z.id, label: z.name })),
+    ];
 
     // Helper function to get nested value
     const getNestedValue = (obj, path) => {
@@ -597,37 +599,36 @@ export default function MasterIndex({
         );
     };
 
-     const handleZoneFilter = (option) => {
-         setSelectedZone(option);
-         setSelectedState(null);
-         setSelectedCity(null);
-         setSelectedArea(null);
-         setAvailableCities([]);
-         setAvailableAreas([]);
+    const handleZoneFilter = (option) => {
+        setSelectedZone(option);
+        setSelectedState(null);
+        setSelectedCity(null);
+        setSelectedArea(null);
+        setAvailableCities([]);
+        setAvailableAreas([]);
 
-         if (onZoneChange) onZoneChange(option);
+        if (onZoneChange) onZoneChange(option);
 
-         router.get(
-             viewBase,
-             {
-                 search: filterText,
-                 per_page: perPage,
-                 zone_id: option?.value,
-                 company_id: selectedCompany?.value,
-                 employee_id: selectedEmployee?.value,
-                 state_id: selectedState?.value,
-                 city_id: selectedCity?.value,
-                 area_id: selectedArea?.value,
-                 company_id: selectedCompany?.value,
-                 store_id: selectedStore?.value,
-                 product_id: selectedProduct?.value,
-                 month: selectedMonth?.value,
-                 year: selectedYear?.value,
-                 status: selectedStatus?.value,
-             },
-             { preserveState: true, preserveScroll: true },
-         );
-     };
+        router.get(
+            viewBase,
+            {
+                search: filterText,
+                per_page: perPage,
+                zone_id: option?.value,
+                company_id: selectedCompany?.value,
+                employee_id: selectedEmployee?.value,
+                state_id: selectedState?.value,
+                city_id: selectedCity?.value,
+                area_id: selectedArea?.value,
+                store_id: selectedStore?.value,
+                product_id: selectedProduct?.value,
+                month: selectedMonth?.value,
+                year: selectedYear?.value,
+                status: selectedStatus?.value,
+            },
+            { preserveState: true, preserveScroll: true },
+        );
+    };
 
     const onToggle = (row) => {
         setConfirmBox({
@@ -804,12 +805,14 @@ export default function MasterIndex({
                         >
                             <i className="fas fa-edit"></i>
                         </Link>
-                        <button
-                            className="btn btn-sm btn-dark text-white"
-                            onClick={() => onDelete(row)}
-                        >
-                            <i className="fas fa-trash"></i>
-                        </button>
+                        {!hideDelete && (
+                            <button
+                                className="btn btn-sm btn-dark text-white"
+                                onClick={() => onDelete(row)}
+                            >
+                                <i className="fas fa-trash"></i>
+                            </button>
+                        )}
                     </div>
                 ),
                 ignoreRowClick: true,
@@ -923,13 +926,15 @@ export default function MasterIndex({
                                 Upload Excel
                             </button>
                         )}
-                        <Link
-                            href={`${viewBase}/create`}
-                            className="btn btn-dark text-white d-flex align-items-center"
-                        >
-                            <i className="fas fa-plus me-2"></i>
-                            Add New
-                        </Link>
+                        {!hideAddButton && (
+                            <Link
+                                href={`${viewBase}/create`}
+                                className="btn btn-dark text-white d-flex align-items-center"
+                            >
+                                <i className="fas fa-plus me-2"></i>
+                                Add New
+                            </Link>
+                        )}
                     </div>
                 </div>
 

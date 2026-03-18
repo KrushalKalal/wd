@@ -2,14 +2,14 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Store;
-use App\Models\State;
-use App\Models\City;
+use App\Helpers\RoleAccessHelper;
 use App\Models\Area;
 use App\Models\CategoryOne;
-use App\Models\CategoryTwo;
 use App\Models\CategoryThree;
-use App\Helpers\RoleAccessHelper;
+use App\Models\CategoryTwo;
+use App\Models\City;
+use App\Models\State;
+use App\Models\Store;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -23,44 +23,37 @@ class StoreMasterController extends Controller
     {
         $query = Store::with(['state.zone', 'city', 'area', 'categoryOne', 'categoryTwo', 'categoryThree']);
 
-        // Apply role-based filter
         $query = RoleAccessHelper::applyRoleFilter($query);
 
-        // Search
         if ($request->has('search') && $request->search) {
             $query->where(function ($q) use ($request) {
                 $q->where('name', 'like', '%' . $request->search . '%')
                     ->orWhere('email', 'like', '%' . $request->search . '%')
-                    ->orWhere('contact_number_1', 'like', '%' . $request->search . '%');
+                    ->orWhere('contact_number_1', 'like', '%' . $request->search . '%')
+                    ->orWhere('store_incharge', 'like', '%' . $request->search . '%');
             });
         }
 
-        // Filter by state
         if ($request->has('state_id') && $request->state_id) {
             $query->where('state_id', $request->state_id);
         }
 
-        // Filter by city
         if ($request->has('city_id') && $request->city_id) {
             $query->where('city_id', $request->city_id);
         }
 
-        // Filter by area
         if ($request->has('area_id') && $request->area_id) {
             $query->where('area_id', $request->area_id);
         }
 
-        // Filter by category one
         if ($request->has('category_one_id') && $request->category_one_id) {
             $query->where('category_one_id', $request->category_one_id);
         }
 
-        // Filter by category two
         if ($request->has('category_two_id') && $request->category_two_id) {
             $query->where('category_two_id', $request->category_two_id);
         }
 
-        // Filter by category three
         if ($request->has('category_three_id') && $request->category_three_id) {
             $query->where('category_three_id', $request->category_three_id);
         }
@@ -68,7 +61,6 @@ class StoreMasterController extends Controller
         $perPage = $request->get('per_page', 10);
         $stores = $query->orderBy('name')->paginate($perPage);
 
-        // Get accessible states for filter
         $stateIds = RoleAccessHelper::getAccessibleStateIds();
         $states = State::whereIn('id', $stateIds)
             ->where('is_active', true)
@@ -101,22 +93,29 @@ class StoreMasterController extends Controller
 
     public function create()
     {
-        $stateIds = RoleAccessHelper::getAccessibleStateIds();
-        $states = State::whereIn('id', $stateIds)
-            ->where('is_active', true)
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
+        $userLocation = RoleAccessHelper::getUserLocation();
+        $locationLocks = RoleAccessHelper::getLocationLocks();
 
         $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
 
+        $areas = [];
+        if ($userLocation['city_id']) {
+            $areas = Area::where('city_id', $userLocation['city_id'])
+                ->where('is_active', true)
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+        }
+
         return Inertia::render('StoreMaster/Form', [
-            'states' => $states,
+            'userLocation' => $userLocation,
+            'locationLocks' => $locationLocks,
             'categoryOnes' => $categoryOnes,
             'categoryTwos' => $categoryTwos,
             'categoryThrees' => $categoryThrees,
+            'areas' => $areas,
         ]);
     }
 
@@ -124,29 +123,70 @@ class StoreMasterController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'store_legal_name' => 'nullable|string|max:255',
+            'store_incharge' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'state_id' => 'required|exists:states,id',
             'city_id' => 'required|exists:cities,id',
             'area_id' => 'required|exists:areas,id',
             'pin_code' => 'nullable|string|max:10',
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
             'category_one_id' => 'nullable|exists:category_one,id',
             'category_two_id' => 'nullable|exists:category_two,id',
             'category_three_id' => 'nullable|exists:category_three,id',
             'contact_number_1' => 'nullable|string|max:20',
             'contact_number_2' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
-            'billing_details' => 'nullable|json',
-            'shipping_details' => 'nullable|json',
-            'manual_stock_entry' => 'nullable|boolean',
         ]);
 
         try {
+            $accessCheck = RoleAccessHelper::validateLocationAccess(
+                $request->state_id,
+                $request->city_id
+            );
+
+            if (!$accessCheck['valid']) {
+                return redirect()->back()
+                    ->with('error', $accessCheck['message'])
+                    ->withInput();
+            }
+
+            $locationLocks = RoleAccessHelper::getLocationLocks();
+            $userLocation = RoleAccessHelper::getUserLocation();
+
             $data = $request->all();
+            $data['country'] = 'India';
             $data['is_active'] = true;
+            $data['manual_stock_entry'] = true;
+
+            if ($locationLocks['zone_id'])
+                $data['zone_id'] = $userLocation['zone_id'];
+            if ($locationLocks['state_id'])
+                $data['state_id'] = $userLocation['state_id'];
+            if ($locationLocks['city_id'])
+                $data['city_id'] = $userLocation['city_id'];
+
+            // Billing details as JSON
+            if ($request->billing_address) {
+                $data['billing_details'] = [
+                    'address' => $request->billing_address,
+                    'latitude' => $request->billing_latitude,
+                    'longitude' => $request->billing_longitude,
+                ];
+            }
+
+            // Shipping details as JSON
+            if ($request->shipping_address) {
+                $data['shipping_details'] = [
+                    'address' => $request->shipping_address,
+                    'latitude' => $request->shipping_latitude,
+                    'longitude' => $request->shipping_longitude,
+                ];
+            }
 
             Store::create($data);
+
             return redirect()->route('store-master.index')
                 ->with('success', 'Store added successfully');
         } catch (\Throwable $e) {
@@ -162,23 +202,30 @@ class StoreMasterController extends Controller
         $store = Store::with(['state', 'city', 'area', 'categoryOne', 'categoryTwo', 'categoryThree'])
             ->findOrFail($id);
 
-        $stateIds = RoleAccessHelper::getAccessibleStateIds();
-        $states = State::whereIn('id', $stateIds)
-            ->where('is_active', true)
-            ->select('id', 'name')
-            ->orderBy('name')
-            ->get();
+        $userLocation = RoleAccessHelper::getUserLocation();
+        $locationLocks = RoleAccessHelper::getLocationLocks();
 
         $categoryOnes = CategoryOne::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryTwos = CategoryTwo::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
         $categoryThrees = CategoryThree::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
 
+        $areas = [];
+        if ($store->city_id) {
+            $areas = Area::where('city_id', $store->city_id)
+                ->where('is_active', true)
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+        }
+
         return Inertia::render('StoreMaster/Form', [
             'store' => $store,
-            'states' => $states,
+            'userLocation' => $userLocation,
+            'locationLocks' => $locationLocks,
             'categoryOnes' => $categoryOnes,
             'categoryTwos' => $categoryTwos,
             'categoryThrees' => $categoryThrees,
+            'areas' => $areas,
         ]);
     }
 
@@ -186,27 +233,58 @@ class StoreMasterController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'store_legal_name' => 'nullable|string|max:255',
+            'store_incharge' => 'nullable|string|max:255',
             'address' => 'nullable|string',
             'state_id' => 'required|exists:states,id',
             'city_id' => 'required|exists:cities,id',
             'area_id' => 'required|exists:areas,id',
             'pin_code' => 'nullable|string|max:10',
-            'latitude' => 'nullable|numeric|between:-90,90',
-            'longitude' => 'nullable|numeric|between:-180,180',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
             'category_one_id' => 'nullable|exists:category_one,id',
             'category_two_id' => 'nullable|exists:category_two,id',
             'category_three_id' => 'nullable|exists:category_three,id',
             'contact_number_1' => 'nullable|string|max:20',
             'contact_number_2' => 'nullable|string|max:20',
             'email' => 'nullable|email|max:255',
-            'billing_details' => 'nullable|json',
-            'shipping_details' => 'nullable|json',
-            'manual_stock_entry' => 'nullable|boolean',
         ]);
 
         try {
+            $accessCheck = RoleAccessHelper::validateLocationAccess(
+                $request->state_id,
+                $request->city_id
+            );
+
+            if (!$accessCheck['valid']) {
+                return redirect()->back()
+                    ->with('error', $accessCheck['message'])
+                    ->withInput();
+            }
+
             $store = Store::findOrFail($id);
-            $store->update($request->all());
+            $data = $request->all();
+
+            $data['country'] = 'India';
+            $data['manual_stock_entry'] = true;
+
+            if ($request->billing_address) {
+                $data['billing_details'] = [
+                    'address' => $request->billing_address,
+                    'latitude' => $request->billing_latitude,
+                    'longitude' => $request->billing_longitude,
+                ];
+            }
+
+            if ($request->shipping_address) {
+                $data['shipping_details'] = [
+                    'address' => $request->shipping_address,
+                    'latitude' => $request->shipping_latitude,
+                    'longitude' => $request->shipping_longitude,
+                ];
+            }
+
+            $store->update($data);
 
             return redirect()->route('store-master.index')
                 ->with('success', 'Store updated successfully');
@@ -221,9 +299,7 @@ class StoreMasterController extends Controller
     public function destroy($id)
     {
         try {
-            $store = Store::findOrFail($id);
-            $store->delete();
-
+            Store::findOrFail($id)->delete();
             return redirect()->back()->with('success', 'Store deleted successfully');
         } catch (\Throwable $e) {
             Log::error('Store deletion failed: ' . $e->getMessage());
@@ -237,7 +313,6 @@ class StoreMasterController extends Controller
             $store = Store::findOrFail($id);
             $store->is_active = !$store->is_active;
             $store->save();
-
             return redirect()->back()->with('success', 'Store status updated successfully');
         } catch (\Throwable $e) {
             Log::error('Store toggle failed: ' . $e->getMessage());
@@ -263,22 +338,20 @@ class StoreMasterController extends Controller
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle('Stores');
 
-            // Headers
             $headers = [
                 'Store Name',
+                'Legal Name',
+                'Store Incharge',
                 'State',
                 'City',
                 'Area',
                 'Pin Code',
-                'Latitude',
-                'Longitude',
                 'Category One',
                 'Category Two',
                 'Category Three',
                 'Contact Number 1',
                 'Contact Number 2',
-                'Email',
-                'Manual Stock Entry (Yes/No)'
+                'Email'
             ];
             $col = 'A';
             foreach ($headers as $header) {
@@ -286,34 +359,27 @@ class StoreMasterController extends Controller
                 $col++;
             }
 
-            // Styling
             $headerStyle = [
                 'font' => ['bold' => true],
                 'fill' => [
                     'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                    'startColor' => ['argb' => 'FFE0E0E0']
-                ]
+                    'startColor' => ['argb' => 'FFE0E0E0'],
+                ],
             ];
-            $sheet->getStyle('A1:N1')->applyFromArray($headerStyle);
+            $sheet->getStyle('A1:M1')->applyFromArray($headerStyle);
 
-            // Create hidden data sheet
             $dataSheet = $spreadsheet->createSheet();
             $dataSheet->setTitle('Data');
 
-            // States dropdown
             $stateNames = $states->pluck('name')->toArray();
             $stateList = '"' . implode(',', $stateNames) . '"';
-
-            // Category dropdowns
             $cat1List = '"' . implode(',', $categoryOnes) . '"';
             $cat2List = '"' . implode(',', $categoryTwos) . '"';
             $cat3List = '"' . implode(',', $categoryThrees) . '"';
 
-            // Cities with named ranges
             $dataCol = 1;
             foreach ($states as $state) {
                 $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($dataCol);
-
                 $stateCities = $state->cities;
                 if ($stateCities->count() > 0) {
                     $dataSheet->setCellValue($columnLetter . '1', $state->name);
@@ -322,23 +388,19 @@ class StoreMasterController extends Controller
                         $dataSheet->setCellValue($columnLetter . $cityRow, $city->name);
                         $cityRow++;
                     }
-
                     $rangeName = 'Cities_' . preg_replace('/[^A-Za-z0-9]/', '_', $state->name);
                     $range = $columnLetter . '2:' . $columnLetter . ($cityRow - 1);
                     $spreadsheet->addNamedRange(
                         new \PhpOffice\PhpSpreadsheet\NamedRange($rangeName, $dataSheet, $range)
                     );
                 }
-
                 $dataCol++;
             }
 
-            // Areas with named ranges
             $areaCol = $dataCol;
             foreach ($states as $state) {
                 foreach ($state->cities as $city) {
                     $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($areaCol);
-
                     if ($city->areas->count() > 0) {
                         $dataSheet->setCellValue($columnLetter . '1', $state->name . '_' . $city->name);
                         $areaRow = 2;
@@ -346,84 +408,75 @@ class StoreMasterController extends Controller
                             $dataSheet->setCellValue($columnLetter . $areaRow, $area->name);
                             $areaRow++;
                         }
-
                         $rangeName = 'Areas_' . preg_replace('/[^A-Za-z0-9]/', '_', $state->name . '_' . $city->name);
                         $range = $columnLetter . '2:' . $columnLetter . ($areaRow - 1);
                         $spreadsheet->addNamedRange(
                             new \PhpOffice\PhpSpreadsheet\NamedRange($rangeName, $dataSheet, $range)
                         );
                     }
-
                     $areaCol++;
                 }
             }
 
             $dataSheet->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
 
-            // Add dropdowns to main sheet
             for ($row = 2; $row <= 1000; $row++) {
-                // State dropdown (Column B)
-                $validation = $sheet->getCell('B' . $row)->getDataValidation();
+                // State dropdown Column D
+                $validation = $sheet->getCell('D' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_STOP);
                 $validation->setAllowBlank(false);
                 $validation->setShowDropDown(true);
                 $validation->setFormula1($stateList);
 
-                // City dropdown (Column C) - dynamic
-                $validation = $sheet->getCell('C' . $row)->getDataValidation();
+                // City dropdown Column E
+                $validation = $sheet->getCell('E' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
                 $validation->setAllowBlank(false);
                 $validation->setShowDropDown(true);
-                $validation->setFormula1('INDIRECT("Cities_"&SUBSTITUTE(B' . $row . '," ","_"))');
+                $validation->setFormula1('INDIRECT("Cities_"&SUBSTITUTE(D' . $row . '," ","_"))');
 
-                // Area dropdown (Column D) - dynamic
-                $validation = $sheet->getCell('D' . $row)->getDataValidation();
+                // Area dropdown Column F
+                $validation = $sheet->getCell('F' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
                 $validation->setAllowBlank(false);
                 $validation->setShowDropDown(true);
-                $validation->setFormula1('INDIRECT("Areas_"&SUBSTITUTE(B' . $row . '," ","_")&"_"&SUBSTITUTE(C' . $row . '," ","_"))');
+                $validation->setFormula1('INDIRECT("Areas_"&SUBSTITUTE(D' . $row . '," ","_")&"_"&SUBSTITUTE(E' . $row . '," ","_"))');
 
-                // Category One dropdown (Column H)
-                $validation = $sheet->getCell('H' . $row)->getDataValidation();
-                $validation->setType(DataValidation::TYPE_LIST);
-                $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
-                $validation->setAllowBlank(true);
-                $validation->setShowDropDown(true);
-                $validation->setFormula1($cat1List);
+                // Category One Column H
+                if (!empty($categoryOnes)) {
+                    $validation = $sheet->getCell('H' . $row)->getDataValidation();
+                    $validation->setType(DataValidation::TYPE_LIST);
+                    $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
+                    $validation->setAllowBlank(true);
+                    $validation->setShowDropDown(true);
+                    $validation->setFormula1($cat1List);
+                }
 
-                // Category Two dropdown (Column I)
-                $validation = $sheet->getCell('I' . $row)->getDataValidation();
-                $validation->setType(DataValidation::TYPE_LIST);
-                $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
-                $validation->setAllowBlank(true);
-                $validation->setShowDropDown(true);
-                $validation->setFormula1($cat2List);
+                // Category Two Column I
+                if (!empty($categoryTwos)) {
+                    $validation = $sheet->getCell('I' . $row)->getDataValidation();
+                    $validation->setType(DataValidation::TYPE_LIST);
+                    $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
+                    $validation->setAllowBlank(true);
+                    $validation->setShowDropDown(true);
+                    $validation->setFormula1($cat2List);
+                }
 
-                // Category Three dropdown (Column J)
-                $validation = $sheet->getCell('J' . $row)->getDataValidation();
-                $validation->setType(DataValidation::TYPE_LIST);
-                $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
-                $validation->setAllowBlank(true);
-                $validation->setShowDropDown(true);
-                $validation->setFormula1($cat3List);
-
-                // Manual Stock Entry dropdown (Column N)
-                $validation = $sheet->getCell('N' . $row)->getDataValidation();
-                $validation->setType(DataValidation::TYPE_LIST);
-                $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
-                $validation->setAllowBlank(true);
-                $validation->setShowDropDown(true);
-                $validation->setFormula1('"Yes,No"');
-
-                // Default value
-                $sheet->setCellValue('N' . $row, 'Yes');
+                // Category Three Column J
+                if (!empty($categoryThrees)) {
+                    $validation = $sheet->getCell('J' . $row)->getDataValidation();
+                    $validation->setType(DataValidation::TYPE_LIST);
+                    $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
+                    $validation->setAllowBlank(true);
+                    $validation->setShowDropDown(true);
+                    $validation->setFormula1($cat3List);
+                }
             }
 
-            // Auto-size columns
-            foreach (range('A', 'N') as $col) {
+            foreach (range('A', 'M') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
 
@@ -461,33 +514,30 @@ class StoreMasterController extends Controller
 
             foreach (array_slice($rows, 1) as $index => $row) {
                 $storeName = trim($row['A'] ?? '');
-                $stateName = trim($row['B'] ?? '');
-                $cityName = trim($row['C'] ?? '');
-                $areaName = trim($row['D'] ?? '');
-                $pinCode = trim($row['E'] ?? '');
-                $latitude = trim($row['F'] ?? '');
-                $longitude = trim($row['G'] ?? '');
+                $legalName = trim($row['B'] ?? '');
+                $storeIncharge = trim($row['C'] ?? '');
+                $stateName = trim($row['D'] ?? '');
+                $cityName = trim($row['E'] ?? '');
+                $areaName = trim($row['F'] ?? '');
+                $pinCode = trim($row['G'] ?? '');
                 $cat1Name = trim($row['H'] ?? '');
                 $cat2Name = trim($row['I'] ?? '');
                 $cat3Name = trim($row['J'] ?? '');
                 $contact1 = trim($row['K'] ?? '');
                 $contact2 = trim($row['L'] ?? '');
                 $email = trim($row['M'] ?? '');
-                $manualStock = trim($row['N'] ?? 'Yes');
 
                 if (!$storeName || !$stateName || !$cityName || !$areaName) {
                     $errors[] = "Row " . ($index + 2) . ": Store name, state, city, and area are required";
                     continue;
                 }
 
-                // Find state
                 $state = State::whereRaw('LOWER(name) = ?', [strtolower($stateName)])->first();
                 if (!$state) {
                     $errors[] = "Row " . ($index + 2) . ": State '{$stateName}' not found";
                     continue;
                 }
 
-                // Find city
                 $city = City::where('state_id', $state->id)
                     ->whereRaw('LOWER(name) = ?', [strtolower($cityName)])
                     ->first();
@@ -496,7 +546,6 @@ class StoreMasterController extends Controller
                     continue;
                 }
 
-                // Find area
                 $area = Area::where('city_id', $city->id)
                     ->whereRaw('LOWER(name) = ?', [strtolower($areaName)])
                     ->first();
@@ -505,7 +554,6 @@ class StoreMasterController extends Controller
                     continue;
                 }
 
-                // Find categories (optional)
                 $cat1Id = null;
                 $cat2Id = null;
                 $cat3Id = null;
@@ -514,12 +562,10 @@ class StoreMasterController extends Controller
                     $cat1 = CategoryOne::whereRaw('LOWER(name) = ?', [strtolower($cat1Name)])->first();
                     $cat1Id = $cat1?->id;
                 }
-
                 if ($cat2Name) {
                     $cat2 = CategoryTwo::whereRaw('LOWER(name) = ?', [strtolower($cat2Name)])->first();
                     $cat2Id = $cat2?->id;
                 }
-
                 if ($cat3Name) {
                     $cat3 = CategoryThree::whereRaw('LOWER(name) = ?', [strtolower($cat3Name)])->first();
                     $cat3Id = $cat3?->id;
@@ -527,19 +573,20 @@ class StoreMasterController extends Controller
 
                 Store::create([
                     'name' => $storeName,
+                    'store_legal_name' => $legalName,
+                    'store_incharge' => $storeIncharge,
                     'state_id' => $state->id,
                     'city_id' => $city->id,
                     'area_id' => $area->id,
                     'pin_code' => $pinCode,
-                    'latitude' => $latitude ?: null,
-                    'longitude' => $longitude ?: null,
                     'category_one_id' => $cat1Id,
                     'category_two_id' => $cat2Id,
                     'category_three_id' => $cat3Id,
                     'contact_number_1' => $contact1,
                     'contact_number_2' => $contact2,
                     'email' => $email,
-                    'manual_stock_entry' => strtolower($manualStock) === 'yes' ? true : false,
+                    'country' => 'India',
+                    'manual_stock_entry' => true,
                     'is_active' => true,
                 ]);
 
@@ -558,7 +605,6 @@ class StoreMasterController extends Controller
         }
     }
 
-    // API endpoint to get areas by city
     public function getAreasByCity($cityId)
     {
         $areas = Area::where('city_id', $cityId)
@@ -573,26 +619,12 @@ class StoreMasterController extends Controller
     public function getAllActiveStores()
     {
         $query = Store::query()
-            ->select([
-                'id',
-                'name',
-                'state_id',
-                'city_id',
-                'area_id',
-                'pin_code',
-            ])
-            ->with([
-                'state:id,name',
-                'city:id,name',
-                'area:id,name',
-            ])
+            ->select(['id', 'name', 'state_id', 'city_id', 'area_id', 'pin_code'])
+            ->with(['state:id,name', 'city:id,name', 'area:id,name'])
             ->where('is_active', true);
 
-        // Apply role-based filter
         $query = RoleAccessHelper::applyRoleFilter($query);
 
-        $stores = $query->orderBy('name')->get();
-
-        return response()->json($stores);
+        return response()->json($query->orderBy('name')->get());
     }
 }

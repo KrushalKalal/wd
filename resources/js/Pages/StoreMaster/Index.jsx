@@ -16,6 +16,8 @@ export default function Index({
 
     const columns = [
         { key: "name", label: "Store Name", width: "180px" },
+        { key: "store_legal_name", label: "Legal Name", width: "180px" },
+        { key: "store_incharge", label: "Store Incharge", width: "150px" },
         { key: "address", label: "Address", width: "200px" },
         { key: "state.name", label: "State", width: "120px" },
         { key: "city.name", label: "City", width: "120px" },

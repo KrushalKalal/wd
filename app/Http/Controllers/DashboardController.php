@@ -188,6 +188,7 @@ class DashboardController extends Controller
                 ->map(function ($visit) {
                     return [
                         'id' => $visit->id,
+                        'store_id' => $visit->store->id,
                         'type' => 'visit',
                         'employee_name' => $visit->employee->name,
                         'store_name' => $visit->store->name,
@@ -209,6 +210,7 @@ class DashboardController extends Controller
                 ->get()
                 ->map(function ($visit) {
                     return [
+                        'store_id' => $visit->store->id,
                         'id' => $visit->id,
                         'type' => 'visit',
                         'employee_name' => $visit->employee->name,
@@ -230,6 +232,7 @@ class DashboardController extends Controller
                 ->map(function ($visit) {
                     return [
                         'id' => $visit->id,
+                        'store_id' => $visit->store->id,
                         'type' => 'visit',
                         'employee_name' => $visit->employee->name,
                         'store_name' => $visit->store->name,
@@ -250,6 +253,7 @@ class DashboardController extends Controller
                 ->map(function ($visit) {
                     return [
                         'id' => $visit->id,
+                        'store_id' => $visit->store->id,
                         'type' => 'visit',
                         'employee_name' => $visit->employee->name,
                         'store_name' => $visit->store->name,
@@ -268,6 +272,7 @@ class DashboardController extends Controller
                 ->map(function ($visit) {
                     return [
                         'id' => $visit->id,
+                        'store_id' => $visit->store->id,
                         'type' => 'visit',
                         'store_name' => $visit->store->name,
                         'status' => $visit->status,

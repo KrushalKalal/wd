@@ -39,6 +39,7 @@ export default function MasterForm({
     // Initialize form data
     const initialData = {};
     fields.forEach((field) => {
+        if (!field.name) return;
         if (field.type === "date" && masterData?.[field.name]) {
             initialData[field.name] = masterData[field.name];
         } else if (field.type === "number" && masterData?.[field.name]) {
@@ -108,6 +109,7 @@ export default function MasterForm({
     useEffect(() => {
         if (masterData) {
             fields.forEach((field) => {
+                if (!field.name) return;
                 if (field.type === "date" && masterData[field.name]) {
                     setData(field.name, masterData[field.name]);
                 } else if (field.type === "number" && masterData[field.name]) {
@@ -365,6 +367,7 @@ export default function MasterForm({
 
     const renderField = (field) => {
         const fieldClass = field.fullWidth ? "col-12" : "col-md-6";
+        if (!field.name) return null;
 
         switch (field.type) {
             case "text":
@@ -878,6 +881,52 @@ export default function MasterForm({
                                         ? errors[field.name][0]
                                         : errors[field.name]}
                                 </div>
+                            )}
+                        </div>
+                    </div>
+                );
+
+            case "section":
+                return (
+                    <div className="col-12" key={field.label}>
+                        <div className="border-top pt-3 mt-2 mb-1">
+                            <h6 className="fw-bold text-dark mb-0">
+                                {field.label}
+                            </h6>
+                            {field.description && (
+                                <small className="text-muted">
+                                    {field.description}
+                                </small>
+                            )}
+                        </div>
+                    </div>
+                );
+
+            case "checkbox":
+                return (
+                    <div className={fieldClass} key={field.name}>
+                        <div className="mb-3">
+                            <div className="form-check mt-4 pt-2">
+                                <input
+                                    type="checkbox"
+                                    className="form-check-input"
+                                    id={field.name}
+                                    checked={!!data[field.name]}
+                                    onChange={(e) =>
+                                        setData(field.name, e.target.checked)
+                                    }
+                                />
+                                <label
+                                    className="form-check-label fw-semibold"
+                                    htmlFor={field.name}
+                                >
+                                    {field.label}
+                                </label>
+                            </div>
+                            {field.helpText && (
+                                <small className="form-text text-muted">
+                                    {field.helpText}
+                                </small>
                             )}
                         </div>
                     </div>

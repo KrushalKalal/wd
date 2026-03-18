@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\State;
 use App\Models\QuestionAnswer;
 use App\Models\StockTransaction;
+use App\Models\Order;
 use App\Helpers\RoleAccessHelper;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -17,9 +18,6 @@ use Inertia\Inertia;
 
 class StoreManagementController extends Controller
 {
-    /**
-     * Display unified store management dashboard
-     */
     public function index(Request $request)
     {
         $query = Store::with([
@@ -31,13 +29,12 @@ class StoreManagementController extends Controller
             },
             'visits.employee.user',
             'visits.questionAnswers.question',
-            'visits.stockTransactions.product'
+            'visits.stockTransactions.product',
+            'visits.orders'
         ]);
 
-        // Apply role-based filter
         $query = RoleAccessHelper::applyRoleFilter($query);
 
-        // Search
         if ($request->has('search') && $request->search) {
             $query->where(function ($q) use ($request) {
                 $q->where('name', 'like', '%' . $request->search . '%')
@@ -48,17 +45,14 @@ class StoreManagementController extends Controller
             });
         }
 
-        // Filter by state
         if ($request->has('state_id') && $request->state_id) {
             $query->where('state_id', $request->state_id);
         }
 
-        // Filter by city
         if ($request->has('city_id') && $request->city_id) {
             $query->where('city_id', $request->city_id);
         }
 
-        // Filter by visit status
         if ($request->has('visit_status') && $request->visit_status !== 'all') {
             $query->whereHas('visits', function ($q) use ($request) {
                 $q->where('status', $request->visit_status);
@@ -68,7 +62,6 @@ class StoreManagementController extends Controller
         $perPage = $request->get('per_page', 15);
         $stores = $query->orderBy('name')->paginate($perPage);
 
-        // Transform data to include aggregated stats
         $stores->getCollection()->transform(function ($store) {
             $latestVisit = $store->visits->first();
 
@@ -81,7 +74,6 @@ class StoreManagementController extends Controller
                 'check_out_time' => $latestVisit->check_out_time,
             ] : null;
 
-            // Survey stats
             if ($latestVisit) {
                 $surveyAnswers = $latestVisit->questionAnswers;
                 $store->survey_stats = [
@@ -92,7 +84,6 @@ class StoreManagementController extends Controller
                     'needs_review' => $surveyAnswers->where('admin_status', 'needs_review')->count(),
                 ];
 
-                // Stock stats
                 $stockTransactions = $latestVisit->stockTransactions;
                 $store->stock_stats = [
                     'total' => $stockTransactions->count(),
@@ -101,6 +92,15 @@ class StoreManagementController extends Controller
                     'delivered' => $stockTransactions->where('status', 'delivered')->count(),
                     'returned' => $stockTransactions->where('status', 'returned')->count(),
                     'rejected' => $stockTransactions->where('status', 'rejected')->count(),
+                ];
+
+                $orders = $latestVisit->orders;
+                $store->order_stats = [
+                    'total' => $orders->count(),
+                    'pending' => $orders->where('status', 'pending')->count(),
+                    'confirmed' => $orders->where('status', 'confirmed')->count(),
+                    'delivered' => $orders->where('status', 'delivered')->count(),
+                    'total_amount' => $orders->sum('total_amount'),
                 ];
             } else {
                 $store->survey_stats = [
@@ -118,12 +118,18 @@ class StoreManagementController extends Controller
                     'returned' => 0,
                     'rejected' => 0,
                 ];
+                $store->order_stats = [
+                    'total' => 0,
+                    'pending' => 0,
+                    'confirmed' => 0,
+                    'delivered' => 0,
+                    'total_amount' => 0,
+                ];
             }
 
             return $store;
         });
 
-        // Get accessible states for filter
         $stateIds = RoleAccessHelper::getAccessibleStateIds();
         $states = State::whereIn('id', $stateIds)
             ->where('is_active', true)
@@ -131,12 +137,13 @@ class StoreManagementController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Get overall statistics
         $statistics = [
             'total_stores' => $query->count(),
             'visited_today' => StoreVisit::whereDate('visit_date', today())->count(),
             'pending_surveys' => QuestionAnswer::where('admin_status', 'pending')->count(),
             'pending_stock' => StockTransaction::where('status', 'pending')->count(),
+            'pending_orders' => Order::where('status', 'pending')->count(),
+            'total_orders_value' => Order::whereDate('created_at', today())->sum('total_amount'),
         ];
 
         return Inertia::render('StoreManagement/Index', [
@@ -153,9 +160,6 @@ class StoreManagementController extends Controller
         ]);
     }
 
-    /**
-     * Show detailed store management page
-     */
     public function show($storeId)
     {
         $store = Store::with([
@@ -167,7 +171,7 @@ class StoreManagementController extends Controller
             'categoryThree',
         ])->findOrFail($storeId);
 
-        // Get all visits for this store
+        // Get ALL visits for this store with complete history
         $visits = StoreVisit::where('store_id', $storeId)
             ->with([
                 'employee.user',
@@ -175,13 +179,14 @@ class StoreManagementController extends Controller
                 'questionAnswers.question',
                 'questionAnswers.reviewer',
                 'stockTransactions.product',
-                'stockTransactions.approvedBy'
+                'stockTransactions.approvedBy',
+                'orders.items.product',
+                'orders.offer'
             ])
             ->orderBy('visit_date', 'desc')
             ->orderBy('check_in_time', 'desc')
             ->get();
 
-        // Transform visits with detailed stats
         $visits->transform(function ($visit) {
             $visit->duration_minutes = null;
             if ($visit->check_in_time && $visit->check_out_time) {
@@ -199,9 +204,6 @@ class StoreManagementController extends Controller
         ]);
     }
 
-    /**
-     * Bulk approve all pending surveys for a visit
-     */
     public function bulkApproveSurveys(Request $request, $visitId)
     {
         $request->validate([
@@ -231,9 +233,6 @@ class StoreManagementController extends Controller
         }
     }
 
-    /**
-     * Review individual survey answer
-     */
     public function reviewSurveyAnswer(Request $request, $answerId)
     {
         $request->validate([
@@ -263,9 +262,6 @@ class StoreManagementController extends Controller
         }
     }
 
-    /**
-     * Approve stock transaction
-     */
     public function approveStock(Request $request, $transactionId)
     {
         $request->validate([
@@ -307,9 +303,6 @@ class StoreManagementController extends Controller
         }
     }
 
-    /**
-     * Reject stock transaction
-     */
     public function rejectStock(Request $request, $transactionId)
     {
         $request->validate([
@@ -335,7 +328,6 @@ class StoreManagementController extends Controller
                 'approved_at' => now(),
             ]);
 
-            // Remove from pending/return stock
             $storeProduct = \App\Models\StoreProduct::where('store_id', $transaction->store_id)
                 ->where('product_id', $transaction->product_id)
                 ->first();
@@ -364,9 +356,6 @@ class StoreManagementController extends Controller
         }
     }
 
-    /**
-     * Mark stock as delivered
-     */
     public function markStockDelivered(Request $request, $transactionId)
     {
         $request->validate([
@@ -376,7 +365,7 @@ class StoreManagementController extends Controller
         try {
             DB::beginTransaction();
 
-            $transaction = StockTransaction::findOrFail($transactionId);
+            $transaction = StockTransaction::with('order.items')->findOrFail($transactionId);
 
             if ($transaction->status !== 'approved') {
                 return response()->json([
@@ -392,12 +381,13 @@ class StoreManagementController extends Controller
                 ], 400);
             }
 
+            // Mark transaction as delivered
             $transaction->update([
                 'status' => 'delivered',
                 'admin_remark' => $request->admin_remark ?? $transaction->admin_remark,
             ]);
 
-            // Update stock
+            // Update stock for this specific product
             $storeProduct = \App\Models\StoreProduct::firstOrCreate(
                 [
                     'store_id' => $transaction->store_id,
@@ -413,9 +403,26 @@ class StoreManagementController extends Controller
             $storeProduct->increment('current_stock', $transaction->quantity);
             $storeProduct->decrement('pending_stock', $transaction->quantity);
 
-            // Update product total stock - DECREMENT because stock left warehouse
             $product = Product::findOrFail($transaction->product_id);
             $product->decrement('total_stock', $transaction->quantity);
+
+            // If linked to an order, check if ALL items are delivered
+            if ($transaction->order_id) {
+                $order = $transaction->order;
+
+                // Check if all stock transactions for this order are delivered
+                $allDelivered = $order->stockTransactions()
+                    ->where('status', '!=', 'delivered')
+                    ->count() === 0;
+
+                if ($allDelivered) {
+                    // Update order status to delivered
+                    $order->update([
+                        'status' => 'delivered',
+                        'delivered_at' => now(),
+                    ]);
+                }
+            }
 
             DB::commit();
 
@@ -425,6 +432,7 @@ class StoreManagementController extends Controller
                 'data' => [
                     'new_current_stock' => $storeProduct->current_stock,
                     'new_pending_stock' => $storeProduct->pending_stock,
+                    'order_delivered' => $transaction->order_id && $allDelivered,
                 ]
             ]);
         } catch (\Exception $e) {
@@ -437,9 +445,6 @@ class StoreManagementController extends Controller
         }
     }
 
-    /**
-     * Mark stock as returned
-     */
     public function markStockReturned(Request $request, $transactionId)
     {
         $request->validate([
@@ -491,7 +496,6 @@ class StoreManagementController extends Controller
             $storeProduct->decrement('current_stock', $transaction->quantity);
             $storeProduct->decrement('return_stock', $transaction->quantity);
 
-            // Update product total stock - INCREMENT because stock came back to warehouse
             $product = Product::findOrFail($transaction->product_id);
             $product->increment('total_stock', $transaction->quantity);
 
@@ -515,9 +519,6 @@ class StoreManagementController extends Controller
         }
     }
 
-    /**
-     * Bulk approve all pending items for a visit
-     */
     public function bulkApproveVisit(Request $request, $visitId)
     {
         $request->validate([
@@ -527,7 +528,6 @@ class StoreManagementController extends Controller
         try {
             DB::beginTransaction();
 
-            // Approve all pending surveys
             $surveyCount = QuestionAnswer::where('visit_id', $visitId)
                 ->where('admin_status', 'pending')
                 ->update([
@@ -537,7 +537,6 @@ class StoreManagementController extends Controller
                     'reviewed_at' => now(),
                 ]);
 
-            // Approve all pending stock transactions
             $stockCount = StockTransaction::where('visit_id', $visitId)
                 ->where('status', 'pending')
                 ->update([
@@ -561,5 +560,235 @@ class StoreManagementController extends Controller
                 'message' => 'Failed to bulk approve'
             ], 500);
         }
+    }
+
+    // NEW: Order Management Methods
+    public function updateOrderStatus(Request $request, $orderId)
+    {
+        $request->validate([
+            'status' => 'required|in:confirmed,delivered,cancelled',
+            'notes' => 'nullable|string',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $order = Order::with(['items.product', 'stockTransactions'])->findOrFail($orderId);
+
+            $order->status = $request->status;
+
+            if ($request->status === 'confirmed') {
+                $order->confirmed_at = now();
+
+                // Approve all linked stock transactions
+                foreach ($order->stockTransactions as $stockTransaction) {
+                    if ($stockTransaction->status === 'pending') {
+                        $stockTransaction->update([
+                            'status' => 'approved',
+                            'approved_by' => auth()->id(),
+                            'approved_at' => now(),
+                        ]);
+                    }
+                }
+                $this->regenerateInvoice($order);
+
+            } elseif ($request->status === 'delivered') {
+                $order->delivered_at = now();
+
+                // Update stock for each item
+                foreach ($order->items as $item) {
+                    $storeProduct = \App\Models\StoreProduct::firstOrCreate(
+                        [
+                            'store_id' => $order->store_id,
+                            'product_id' => $item->product_id,
+                        ],
+                        [
+                            'current_stock' => 0,
+                            'pending_stock' => 0,
+                            'return_stock' => 0,
+                        ]
+                    );
+
+                    // Move from pending to current
+                    $storeProduct->decrement('pending_stock', $item->quantity);
+                    $storeProduct->increment('current_stock', $item->quantity);
+
+                    // Update product total stock
+                    $product = Product::findOrFail($item->product_id);
+                    $product->decrement('total_stock', $item->quantity);
+                }
+
+                // Mark all linked stock transactions as delivered
+                foreach ($order->stockTransactions as $stockTransaction) {
+                    $stockTransaction->update([
+                        'status' => 'delivered',
+                        'approved_by' => auth()->id(),
+                        'approved_at' => now(),
+                    ]);
+                }
+                $this->regenerateInvoice($order);
+
+            } elseif ($request->status === 'cancelled') {
+                // Reverse pending stock for cancelled orders
+                foreach ($order->items as $item) {
+                    $storeProduct = \App\Models\StoreProduct::where('store_id', $order->store_id)
+                        ->where('product_id', $item->product_id)
+                        ->first();
+
+                    if ($storeProduct) {
+                        $storeProduct->decrement('pending_stock', $item->quantity);
+                    }
+                }
+
+                // Cancel all linked stock transactions
+                foreach ($order->stockTransactions as $stockTransaction) {
+                    $stockTransaction->update([
+                        'status' => 'rejected',
+                        'admin_remark' => 'Order cancelled',
+                        'approved_by' => auth()->id(),
+                        'approved_at' => now(),
+                    ]);
+                }
+                $this->regenerateInvoice($order);
+            }
+
+            if ($request->notes) {
+                $order->notes = $request->notes;
+            }
+
+            $order->save();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => "Order status updated to {$request->status}",
+                'data' => $order->fresh(['items.product', 'stockTransactions'])
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Order status update failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to update order status'
+            ], 500);
+        }
+    }
+
+    private function regenerateInvoice(Order $order)
+    {
+        // Delete old invoice if exists
+        if ($order->invoice_pdf_path) {
+            \Storage::disk('public')->delete($order->invoice_pdf_path);
+        }
+
+        // Load relationships needed for invoice
+        $order->load(['items.product.pCategory', 'store.state', 'store.city', 'employee', 'visit', 'offer']);
+
+        // Generate new PDF
+        $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('invoices.order-invoice', ['order' => $order]);
+
+        $storeName = \Str::slug($order->store->name);
+        $fileName = "invoice_{$order->order_number}.pdf";
+        $folderPath = "invoices/{$storeName}";
+        $filePath = "{$folderPath}/{$fileName}";
+
+        \Storage::disk('public')->put($filePath, $pdf->output());
+
+        // Update order with new path
+        $order->update(['invoice_pdf_path' => $filePath]);
+
+        return $filePath;
+    }
+
+    public function bulkDeliverOrder(Request $request, $orderId)
+    {
+        $request->validate([
+            'admin_remark' => 'nullable|string|max:500',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            $order = Order::with(['items.product', 'stockTransactions'])->findOrFail($orderId);
+
+            if ($order->status === 'delivered') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Order already delivered'
+                ], 400);
+            }
+
+            // Update order
+            $order->update([
+                'status' => 'delivered',
+                'delivered_at' => now(),
+                'notes' => $request->admin_remark ?? $order->notes,
+            ]);
+
+            // Update stock for each item
+            foreach ($order->items as $item) {
+                $storeProduct = \App\Models\StoreProduct::firstOrCreate(
+                    [
+                        'store_id' => $order->store_id,
+                        'product_id' => $item->product_id,
+                    ],
+                    [
+                        'current_stock' => 0,
+                        'pending_stock' => 0,
+                        'return_stock' => 0,
+                    ]
+                );
+
+                $storeProduct->decrement('pending_stock', $item->quantity);
+                $storeProduct->increment('current_stock', $item->quantity);
+
+                $product = Product::findOrFail($item->product_id);
+                $product->decrement('total_stock', $item->quantity);
+            }
+
+            // Mark all stock transactions as delivered
+            foreach ($order->stockTransactions as $stockTransaction) {
+                $stockTransaction->update([
+                    'status' => 'delivered',
+                    'admin_remark' => $request->admin_remark,
+                    'approved_by' => auth()->id(),
+                    'approved_at' => now(),
+                ]);
+            }
+            $this->regenerateInvoice($order);
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Order marked as delivered successfully'
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Bulk deliver order failed: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to deliver order'
+            ], 500);
+        }
+    }
+
+    public function getOrderDetails($orderId)
+    {
+        $order = Order::with([
+            'items.product',
+            'store',
+            'employee',
+            'visit',
+            'offer'
+        ])->findOrFail($orderId);
+
+        return response()->json([
+            'success' => true,
+            'data' => $order
+        ]);
     }
 }

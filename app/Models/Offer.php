@@ -28,8 +28,10 @@ class Offer extends Model
 
     protected $casts = [
         'is_active' => 'boolean',
-        'start_date' => 'date',
-        'end_date' => 'date',
+        'start_date' => 'date:Y-m-d',
+        'end_date' => 'date:Y-m-d',
+        'created_at' => 'date:Y-m-d',
+        'updated_at' => 'date:Y-m-d',
         'offer_percentage' => 'decimal:2',
         'min_sales_amount' => 'decimal:2',
         'max_sales_amount' => 'decimal:2',

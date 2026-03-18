@@ -30,11 +30,16 @@ class Employee extends Model
         'dob',
         'doj',
         'designation',
+        'promocode',
+        'promocode_discount_percentage',
+        'promocode_active',
         'reporting_to'
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'promocode_active' => 'boolean',
+        'promocode_discount_percentage' => 'decimal:2',
         'dob' => 'date',
         'doj' => 'date',
     ];
@@ -133,5 +138,15 @@ class Employee extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function hasActivePromocode()
+    {
+        return $this->promocode && $this->promocode_active && $this->promocode_discount_percentage > 0;
     }
 }

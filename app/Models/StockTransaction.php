@@ -11,6 +11,7 @@ class StockTransaction extends Model
         'product_id',
         'employee_id',
         'visit_id',
+        'order_id',
         'type',
         'quantity',
         'status',
@@ -42,6 +43,11 @@ class StockTransaction extends Model
     public function visit()
     {
         return $this->belongsTo(StoreVisit::class, 'visit_id');
+    }
+
+    public function order()
+    {
+        return $this->belongsTo(Order::class);
     }
 
     public function approvedBy()

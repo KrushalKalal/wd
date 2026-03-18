@@ -10,7 +10,6 @@ export default function Index({ auth, records, states, statistics, filters }) {
     const pagination = records;
 
     const [alert, setAlert] = useState({ show: false, type: "", message: "" });
-    const [expandedStore, setExpandedStore] = useState(null);
 
     useEffect(() => {
         if (flash?.success) {
@@ -36,6 +35,13 @@ export default function Index({ auth, records, states, statistics, filters }) {
         return "bg-success text-white";
     };
 
+    const getOrderStatusColor = (stats) => {
+        if (stats.total === 0) return "bg-secondary";
+        if (stats.pending > 0) return "bg-warning text-dark";
+        if (stats.confirmed > 0) return "bg-info text-white";
+        return "bg-success text-white";
+    };
+
     const getVisitStatusBadge = (status) => {
         const badges = {
             checked_in: "bg-dark text-white",
@@ -56,18 +62,17 @@ export default function Index({ auth, records, states, statistics, filters }) {
                 <div className="d-flex justify-content-between align-items-center mb-4">
                     <div>
                         <h2 className="mb-1 fw-bold text-dark">
-                            Store Management Stock & Surveys
+                            Store Management Dashboard
                         </h2>
                         <p className="text-muted mb-0">
-                            Manage store visits, surveys, and stock approvals in
-                            one place
+                            Manage visits, surveys, stock, and orders
                         </p>
                     </div>
                 </div>
 
                 {/* STATISTICS CARDS */}
                 <div className="row g-3 mb-4">
-                    <div className="col-md-3">
+                    <div className="col-md-2">
                         <div
                             className="card border-0 shadow-sm"
                             style={{ backgroundColor: "#111111" }}
@@ -75,14 +80,14 @@ export default function Index({ auth, records, states, statistics, filters }) {
                             <div className="card-body">
                                 <div className="d-flex align-items-center">
                                     <div className="flex-grow-1">
-                                        <p className="mb-1 text-white">
+                                        <p className="mb-1 text-white small">
                                             Total Stores
                                         </p>
-                                        <h3 className="mb-0 fw-bold text-white">
+                                        <h4 className="mb-0 fw-bold text-white">
                                             {statistics.total_stores}
-                                        </h3>
+                                        </h4>
                                     </div>
-                                    <div className="ms-3">
+                                    <div className="ms-2">
                                         <i className="fas fa-store fa-2x text-white"></i>
                                     </div>
                                 </div>
@@ -90,7 +95,7 @@ export default function Index({ auth, records, states, statistics, filters }) {
                         </div>
                     </div>
 
-                    <div className="col-md-3">
+                    <div className="col-md-2">
                         <div
                             className="card border-0 shadow-sm"
                             style={{ backgroundColor: "#111111" }}
@@ -98,14 +103,14 @@ export default function Index({ auth, records, states, statistics, filters }) {
                             <div className="card-body">
                                 <div className="d-flex align-items-center">
                                     <div className="flex-grow-1">
-                                        <p className="mb-1 text-white">
-                                            Visited Today
+                                        <p className="mb-1 text-white small">
+                                            Today's Visits
                                         </p>
-                                        <h3 className="mb-0 fw-bold text-white">
+                                        <h4 className="mb-0 fw-bold text-white">
                                             {statistics.visited_today}
-                                        </h3>
+                                        </h4>
                                     </div>
-                                    <div className="ms-3">
+                                    <div className="ms-2">
                                         <i className="fas fa-calendar-check fa-2x text-white"></i>
                                     </div>
                                 </div>
@@ -113,7 +118,7 @@ export default function Index({ auth, records, states, statistics, filters }) {
                         </div>
                     </div>
 
-                    <div className="col-md-3">
+                    <div className="col-md-2">
                         <div
                             className="card border-0 shadow-sm"
                             style={{ backgroundColor: "#111111" }}
@@ -121,14 +126,14 @@ export default function Index({ auth, records, states, statistics, filters }) {
                             <div className="card-body">
                                 <div className="d-flex align-items-center">
                                     <div className="flex-grow-1">
-                                        <p className="mb-1 text-white">
+                                        <p className="mb-1 text-white small">
                                             Pending Surveys
                                         </p>
-                                        <h3 className="mb-0 fw-bold text-white">
+                                        <h4 className="mb-0 fw-bold text-white">
                                             {statistics.pending_surveys}
-                                        </h3>
+                                        </h4>
                                     </div>
-                                    <div className="ms-3">
+                                    <div className="ms-2">
                                         <i className="fas fa-clipboard-list fa-2x text-white"></i>
                                     </div>
                                 </div>
@@ -136,7 +141,7 @@ export default function Index({ auth, records, states, statistics, filters }) {
                         </div>
                     </div>
 
-                    <div className="col-md-3">
+                    <div className="col-md-2">
                         <div
                             className="card border-0 shadow-sm"
                             style={{ backgroundColor: "#111111" }}
@@ -144,15 +149,65 @@ export default function Index({ auth, records, states, statistics, filters }) {
                             <div className="card-body">
                                 <div className="d-flex align-items-center">
                                     <div className="flex-grow-1">
-                                        <p className="mb-1 text-white">
+                                        <p className="mb-1 text-white small">
                                             Pending Stock
                                         </p>
-                                        <h3 className="mb-0 fw-bold text-white">
+                                        <h4 className="mb-0 fw-bold text-white">
                                             {statistics.pending_stock}
-                                        </h3>
+                                        </h4>
                                     </div>
-                                    <div className="ms-3">
+                                    <div className="ms-2">
                                         <i className="fas fa-boxes fa-2x text-white"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="col-md-2">
+                        <div
+                            className="card border-0 shadow-sm"
+                            style={{ backgroundColor: "#111111" }}
+                        >
+                            <div className="card-body">
+                                <div className="d-flex align-items-center">
+                                    <div className="flex-grow-1">
+                                        <p className="mb-1 text-white small">
+                                            Pending Orders
+                                        </p>
+                                        <h4 className="mb-0 fw-bold text-white">
+                                            {statistics.pending_orders}
+                                        </h4>
+                                    </div>
+                                    <div className="ms-2">
+                                        <i className="fas fa-shopping-cart fa-2x text-white"></i>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="col-md-2">
+                        <div
+                            className="card border-0 shadow-sm"
+                            style={{ backgroundColor: "#111111" }}
+                        >
+                            <div className="card-body">
+                                <div className="d-flex align-items-center">
+                                    <div className="flex-grow-1">
+                                        <p className="mb-1 text-white small">
+                                            Today's Sales
+                                        </p>
+                                        <h4 className="mb-0 fw-bold text-white">
+                                            ₹
+                                            {parseFloat(
+                                                statistics.total_orders_value ||
+                                                    0,
+                                            ).toFixed(0)}
+                                        </h4>
+                                    </div>
+                                    <div className="ms-2">
+                                        <i className="fas fa-rupee-sign fa-2x text-white"></i>
                                     </div>
                                 </div>
                             </div>
@@ -294,7 +349,7 @@ export default function Index({ auth, records, states, statistics, filters }) {
                     <div className="card-body p-0">
                         <div className="table-responsive">
                             <table className="table table-hover mb-0">
-                                <thead className="">
+                                <thead>
                                     <tr>
                                         <th
                                             style={{
@@ -334,7 +389,7 @@ export default function Index({ auth, records, states, statistics, filters }) {
                                                 color: "#fff",
                                             }}
                                         >
-                                            Survey Status
+                                            Survey
                                         </th>
                                         <th
                                             style={{
@@ -342,7 +397,15 @@ export default function Index({ auth, records, states, statistics, filters }) {
                                                 color: "#fff",
                                             }}
                                         >
-                                            Stock Status
+                                            Stock
+                                        </th>
+                                        <th
+                                            style={{
+                                                backgroundColor: "#111111",
+                                                color: "#fff",
+                                            }}
+                                        >
+                                            Orders
                                         </th>
                                         <th
                                             style={{
@@ -424,8 +487,7 @@ export default function Index({ auth, records, states, statistics, filters }) {
                                                                     store
                                                                         .survey_stats
                                                                         .total
-                                                                }{" "}
-                                                                Answers
+                                                                }
                                                             </span>
                                                             <div className="small text-muted">
                                                                 {store
@@ -458,7 +520,7 @@ export default function Index({ auth, records, states, statistics, filters }) {
                                                         </div>
                                                     ) : (
                                                         <span className="badge bg-secondary">
-                                                            No surveys
+                                                            None
                                                         </span>
                                                     )}
                                                 </td>
@@ -473,8 +535,7 @@ export default function Index({ auth, records, states, statistics, filters }) {
                                                                     store
                                                                         .stock_stats
                                                                         .total
-                                                                }{" "}
-                                                                Transactions
+                                                                }
                                                             </span>
                                                             <div className="small text-muted">
                                                                 {store
@@ -507,7 +568,35 @@ export default function Index({ auth, records, states, statistics, filters }) {
                                                         </div>
                                                     ) : (
                                                         <span className="badge bg-secondary">
-                                                            No stock
+                                                            None
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td>
+                                                    {store.order_stats.total >
+                                                    0 ? (
+                                                        <div>
+                                                            <span
+                                                                className={`badge ${getOrderStatusColor(store.order_stats)} mb-1`}
+                                                            >
+                                                                {
+                                                                    store
+                                                                        .order_stats
+                                                                        .total
+                                                                }
+                                                            </span>
+                                                            <div className="small text-dark fw-bold">
+                                                                ₹
+                                                                {parseFloat(
+                                                                    store
+                                                                        .order_stats
+                                                                        .total_amount,
+                                                                ).toFixed(0)}
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <span className="badge bg-secondary">
+                                                            None
                                                         </span>
                                                     )}
                                                 </td>
@@ -526,7 +615,7 @@ export default function Index({ auth, records, states, statistics, filters }) {
                                     ) : (
                                         <tr>
                                             <td
-                                                colSpan="7"
+                                                colSpan="8"
                                                 className="text-center py-5"
                                             >
                                                 <i className="fas fa-store fa-3x text-muted mb-3 d-block"></i>
@@ -580,7 +669,6 @@ export default function Index({ auth, records, states, statistics, filters }) {
                     </div>
                 </div>
 
-                {/* ALERT MODAL */}
                 <AlertModal
                     show={alert.show}
                     type={alert.type}

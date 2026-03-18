@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 
 class Question extends Model
 {
-    protected $fillable = ['question_text', 'is_active'];
+    protected $fillable = ['question_text', 'is_active', 'is_count'];
 
     protected $casts = [
         'is_active' => 'boolean',
+        'is_count' => 'boolean',
     ];
 
 

@@ -8,6 +8,14 @@ export default function Form({ auth, question = null }) {
             type: "textarea",
             required: true,
             placeholder: "Enter question here...",
+            fullWidth: true,
+        },
+        {
+            name: "is_count",
+            label: "Require Count Input from Employee",
+            type: "checkbox",
+            helpText:
+                "If enabled, employee must enter a numeric count when answering this question",
         },
     ];
 

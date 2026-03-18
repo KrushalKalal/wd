@@ -19,7 +19,6 @@ class CompanyMasterController extends Controller
     {
         $query = Company::with(['state', 'city', 'area']);
 
-        // Search
         if ($request->has('search') && $request->search) {
             $query->where(function ($q) use ($request) {
                 $q->where('name', 'like', '%' . $request->search . '%')
@@ -28,17 +27,14 @@ class CompanyMasterController extends Controller
             });
         }
 
-        // Filter by state
         if ($request->has('state_id') && $request->state_id) {
             $query->where('state_id', $request->state_id);
         }
 
-        // Filter by city
         if ($request->has('city_id') && $request->city_id) {
             $query->where('city_id', $request->city_id);
         }
 
-        // Filter by area
         if ($request->has('area_id') && $request->area_id) {
             $query->where('area_id', $request->area_id);
         }
@@ -61,56 +57,29 @@ class CompanyMasterController extends Controller
         ]);
     }
 
-    public function create()
-    {
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-
-        return Inertia::render('CompanyMaster/Form', [
-            'states' => $states,
-        ]);
-    }
-
-    public function store(Request $request)
-    {
-        $request->validate([
-            'name' => 'required|string|max:255|unique:companies,name',
-            'address' => 'nullable|string',
-            'state_id' => 'nullable|exists:states,id',
-            'city_id' => 'nullable|exists:cities,id',
-            'area_id' => 'nullable|exists:areas,id',
-            'pin_code' => 'nullable|string|max:10',
-            'country' => 'required|string|max:255',
-            'contact_number_1' => 'nullable|string|max:20',
-            'contact_number_2' => 'nullable|string|max:20',
-            'email_1' => 'nullable|email|max:255',
-            'email_2' => 'nullable|email|max:255',
-        ]);
-
-        try {
-            $data = $request->all();
-            $data['is_active'] = true;
-            Company::create($data);
-
-            return redirect()->route('company-master.index')
-                ->with('success', 'Company added successfully');
-        } catch (\Throwable $e) {
-            Log::error('Company creation failed: ' . $e->getMessage());
-            return redirect()->back()
-                ->with('error', 'Failed to add company')
-                ->withInput();
-        }
-    }
+    // NO create() — single company, edit only
 
     public function edit($id)
     {
         $company = Company::with(['state', 'city', 'area'])->findOrFail($id);
-        $states = State::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+
+        // Load areas for current city
+        $areas = [];
+        if ($company->city_id) {
+            $areas = Area::where('city_id', $company->city_id)
+                ->where('is_active', true)
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+        }
 
         return Inertia::render('CompanyMaster/Form', [
             'company' => $company,
-            'states' => $states,
+            'areas' => $areas,
         ]);
     }
+
+    // NO store() — single company, edit only
 
     public function update(Request $request, $id)
     {
@@ -121,16 +90,28 @@ class CompanyMasterController extends Controller
             'city_id' => 'nullable|exists:cities,id',
             'area_id' => 'nullable|exists:areas,id',
             'pin_code' => 'nullable|string|max:10',
-            'country' => 'required|string|max:255',
             'contact_number_1' => 'nullable|string|max:20',
-            'contact_number_2' => 'nullable|string|max:20',
             'email_1' => 'nullable|email|max:255',
-            'email_2' => 'nullable|email|max:255',
+            'latitude' => 'nullable|numeric',
+            'longitude' => 'nullable|numeric',
         ]);
 
         try {
             $company = Company::findOrFail($id);
-            $company->update($request->all());
+
+            $company->update([
+                'name' => $request->name,
+                'address' => $request->address,
+                'state_id' => $request->state_id,
+                'city_id' => $request->city_id,
+                'area_id' => $request->area_id,
+                'pin_code' => $request->pin_code,
+                'contact_number_1' => $request->contact_number_1,
+                'email_1' => $request->email_1,
+                'latitude' => $request->latitude,
+                'longitude' => $request->longitude,
+                'country' => 'India',
+            ]);
 
             return redirect()->route('company-master.index')
                 ->with('success', 'Company updated successfully');
@@ -147,7 +128,6 @@ class CompanyMasterController extends Controller
         try {
             $company = Company::findOrFail($id);
             $company->delete();
-
             return redirect()->back()->with('success', 'Company deleted successfully');
         } catch (\Throwable $e) {
             Log::error('Company deletion failed: ' . $e->getMessage());
@@ -161,7 +141,6 @@ class CompanyMasterController extends Controller
             $company = Company::findOrFail($id);
             $company->is_active = !$company->is_active;
             $company->save();
-
             return redirect()->back()->with('success', 'Company status updated successfully');
         } catch (\Throwable $e) {
             Log::error('Company toggle failed: ' . $e->getMessage());
@@ -178,7 +157,6 @@ class CompanyMasterController extends Controller
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle('Companies');
 
-            // Headers
             $headers = [
                 'Company Name',
                 'Address',
@@ -186,11 +164,8 @@ class CompanyMasterController extends Controller
                 'City',
                 'Area',
                 'Pin Code',
-                'Country',
                 'Contact Number 1',
-                'Contact Number 2',
-                'Email 1',
-                'Email 2'
+                'Email 1'
             ];
             $col = 'A';
             foreach ($headers as $header) {
@@ -198,30 +173,24 @@ class CompanyMasterController extends Controller
                 $col++;
             }
 
-            // Styling
             $headerStyle = [
                 'font' => ['bold' => true],
                 'fill' => [
                     'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                    'startColor' => ['argb' => 'FFE0E0E0']
-                ]
+                    'startColor' => ['argb' => 'FFE0E0E0'],
+                ],
             ];
-            $sheet->getStyle('A1:K1')->applyFromArray($headerStyle);
+            $sheet->getStyle('A1:H1')->applyFromArray($headerStyle);
 
-            // Create hidden data sheet
             $dataSheet = $spreadsheet->createSheet();
             $dataSheet->setTitle('Data');
 
-            // Write states
             $stateNames = $states->pluck('name')->toArray();
             $stateList = '"' . implode(',', $stateNames) . '"';
 
-            // Write cities and areas with named ranges
             $dataCol = 1;
             foreach ($states as $state) {
                 $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($dataCol);
-
-                // Cities
                 $stateCities = $state->cities;
                 if ($stateCities->count() > 0) {
                     $dataSheet->setCellValue($columnLetter . '1', $state->name);
@@ -230,23 +199,19 @@ class CompanyMasterController extends Controller
                         $dataSheet->setCellValue($columnLetter . $cityRow, $city->name);
                         $cityRow++;
                     }
-
                     $rangeName = 'Cities_' . preg_replace('/[^A-Za-z0-9]/', '_', $state->name);
                     $range = $columnLetter . '2:' . $columnLetter . ($cityRow - 1);
                     $spreadsheet->addNamedRange(
                         new \PhpOffice\PhpSpreadsheet\NamedRange($rangeName, $dataSheet, $range)
                     );
                 }
-
                 $dataCol++;
             }
 
-            // Areas
             $areaCol = $dataCol;
             foreach ($states as $state) {
                 foreach ($state->cities as $city) {
                     $columnLetter = \PhpOffice\PhpSpreadsheet\Cell\Coordinate::stringFromColumnIndex($areaCol);
-
                     if ($city->areas->count() > 0) {
                         $dataSheet->setCellValue($columnLetter . '1', $state->name . '_' . $city->name);
                         $areaRow = 2;
@@ -254,23 +219,19 @@ class CompanyMasterController extends Controller
                             $dataSheet->setCellValue($columnLetter . $areaRow, $area->name);
                             $areaRow++;
                         }
-
                         $rangeName = 'Areas_' . preg_replace('/[^A-Za-z0-9]/', '_', $state->name . '_' . $city->name);
                         $range = $columnLetter . '2:' . $columnLetter . ($areaRow - 1);
                         $spreadsheet->addNamedRange(
                             new \PhpOffice\PhpSpreadsheet\NamedRange($rangeName, $dataSheet, $range)
                         );
                     }
-
                     $areaCol++;
                 }
             }
 
             $dataSheet->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
 
-            // Add dropdowns to main sheet
             for ($row = 2; $row <= 1000; $row++) {
-                // State dropdown (Column C)
                 $validation = $sheet->getCell('C' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_STOP);
@@ -278,7 +239,6 @@ class CompanyMasterController extends Controller
                 $validation->setShowDropDown(true);
                 $validation->setFormula1($stateList);
 
-                // City dropdown (Column D) - dynamic based on state
                 $validation = $sheet->getCell('D' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
@@ -286,7 +246,6 @@ class CompanyMasterController extends Controller
                 $validation->setShowDropDown(true);
                 $validation->setFormula1('INDIRECT("Cities_"&SUBSTITUTE(C' . $row . '," ","_"))');
 
-                // Area dropdown (Column E) - dynamic based on state and city
                 $validation = $sheet->getCell('E' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
@@ -295,13 +254,7 @@ class CompanyMasterController extends Controller
                 $validation->setFormula1('INDIRECT("Areas_"&SUBSTITUTE(C' . $row . '," ","_")&"_"&SUBSTITUTE(D' . $row . '," ","_"))');
             }
 
-            // Set default country
-            for ($row = 2; $row <= 1000; $row++) {
-                $sheet->setCellValue('G' . $row, 'India');
-            }
-
-            // Auto-size columns
-            foreach (range('A', 'K') as $col) {
+            foreach (range('A', 'H') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
 
@@ -344,18 +297,14 @@ class CompanyMasterController extends Controller
                 $cityName = trim($row['D'] ?? '');
                 $areaName = trim($row['E'] ?? '');
                 $pinCode = trim($row['F'] ?? '');
-                $country = trim($row['G'] ?? 'India');
-                $contact1 = trim($row['H'] ?? '');
-                $contact2 = trim($row['I'] ?? '');
-                $email1 = trim($row['J'] ?? '');
-                $email2 = trim($row['K'] ?? '');
+                $contact1 = trim($row['G'] ?? '');
+                $email1 = trim($row['H'] ?? '');
 
                 if (!$companyName) {
                     $errors[] = "Row " . ($index + 2) . ": Company name is required";
                     continue;
                 }
 
-                // Check if company already exists
                 $exists = Company::whereRaw('LOWER(name) = ?', [strtolower($companyName)])->first();
                 if ($exists) {
                     $errors[] = "Row " . ($index + 2) . ": Company '{$companyName}' already exists";
@@ -366,7 +315,6 @@ class CompanyMasterController extends Controller
                 $cityId = null;
                 $areaId = null;
 
-                // Find state
                 if ($stateName) {
                     $state = State::whereRaw('LOWER(name) = ?', [strtolower($stateName)])->first();
                     if (!$state) {
@@ -375,7 +323,6 @@ class CompanyMasterController extends Controller
                     }
                     $stateId = $state->id;
 
-                    // Find city
                     if ($cityName) {
                         $city = City::where('state_id', $stateId)
                             ->whereRaw('LOWER(name) = ?', [strtolower($cityName)])
@@ -386,7 +333,6 @@ class CompanyMasterController extends Controller
                         }
                         $cityId = $city->id;
 
-                        // Find area
                         if ($areaName) {
                             $area = Area::where('city_id', $cityId)
                                 ->whereRaw('LOWER(name) = ?', [strtolower($areaName)])
@@ -407,11 +353,9 @@ class CompanyMasterController extends Controller
                     'city_id' => $cityId,
                     'area_id' => $areaId,
                     'pin_code' => $pinCode,
-                    'country' => $country,
+                    'country' => 'India',
                     'contact_number_1' => $contact1,
-                    'contact_number_2' => $contact2,
                     'email_1' => $email1,
-                    'email_2' => $email2,
                     'is_active' => true,
                 ]);
 

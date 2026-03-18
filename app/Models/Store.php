@@ -8,6 +8,8 @@ class Store extends Model
 {
     protected $fillable = [
         'name',
+        'store_legal_name',
+        'store_incharge',
         'address',
         'state_id',
         'city_id',
@@ -25,6 +27,7 @@ class Store extends Model
         'shipping_details',
         'manual_stock_entry',
         'is_active',
+        'created_by_employee_id',
     ];
 
     protected $casts = [
@@ -95,5 +98,15 @@ class Store extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+
+    public function createdByEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'created_by_employee_id');
     }
 }

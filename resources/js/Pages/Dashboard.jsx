@@ -6,6 +6,8 @@ export default function Dashboard() {
     const { auth, role, statistics, recentActivities, hierarchyBreakdown } =
         usePage().props;
 
+    console.log(recentActivities);
+
     const getStatusBadge = (status) => {
         const badges = {
             checked_in: "bg-warning text-dark",
@@ -616,7 +618,7 @@ export default function Dashboard() {
                                                 (visit, index) => (
                                                     <Link
                                                         key={index}
-                                                        href={`/store-management/${visit.id}`}
+                                                        href={`/store-management/${visit.store_id}`}
                                                         className="list-group-item list-group-item-action"
                                                     >
                                                         <div className="d-flex justify-content-between align-items-start">

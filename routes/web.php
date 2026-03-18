@@ -23,7 +23,10 @@ use App\Http\Controllers\EmployeeTargetController;
 use App\Http\Controllers\StockApprovalController;
 use App\Http\Controllers\StoreVisitController;
 use App\Http\Controllers\StoreManagementController;
+use App\Helpers\LocationResolverHelper;
+use App\Helpers\RoleAccessHelper;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -38,6 +41,102 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
+
+    Route::get('/api/resolve-location', function (\Illuminate\Http\Request $request) {
+        $stateName = $request->get('state_name');
+        $cityName = $request->get('city_name');
+        $areaName = $request->get('area_name', '');
+        $zoneId = $request->get('zone_id');
+
+        if (!$stateName || !$cityName) {
+            return response()->json([
+                'success' => false,
+                'error' => 'State and city names are required',
+            ], 422);
+        }
+
+        $result = LocationResolverHelper::resolveLocation(
+            $stateName,
+            $cityName,
+            $areaName,
+            $zoneId ? (int) $zoneId : null
+        );
+
+        if ($result['success']) {
+            $accessCheck = RoleAccessHelper::validateLocationAccess(
+                $result['state_id'],
+                $result['city_id']
+            );
+
+            if (!$accessCheck['valid']) {
+                return response()->json([
+                    'success' => false,
+                    'error' => $accessCheck['message'],
+                ], 403);
+            }
+        }
+
+        return response()->json($result);
+    })->name('api.resolve-location');
+
+    // Get areas by city for address section dropdown
+    // Route::get('/api/areas-by-city/{cityId}', function ($cityId) {
+    //     $areas = LocationResolverHelper::getAreasByCity((int) $cityId);
+    //     return response()->json($areas);
+    // })->name('api.areas-by-city');
+
+    // Get managers for a given role — used by employee form AJAX
+    Route::get('/api/managers-by-role', function (\Illuminate\Http\Request $request) {
+        $roleId = $request->get('role_id');
+        if (!$roleId)
+            return response()->json([]);
+
+        $role = \Spatie\Permission\Models\Role::find($roleId);
+        if (!$role)
+            return response()->json([]);
+
+        $managerRoles = RoleAccessHelper::getManagerRoles($role->name);
+        if (empty($managerRoles))
+            return response()->json([]);
+
+        $userLocation = RoleAccessHelper::getUserLocation();
+        $user = Auth::user();
+
+        $query = \App\Models\Employee::whereHas('user.roles', function ($q) use ($managerRoles) {
+            $q->whereIn('name', $managerRoles);
+        })->where('is_active', true);
+
+        if ($user->hasRole('Zonal Head') && $userLocation['zone_id']) {
+            $query->where('zone_id', $userLocation['zone_id']);
+        } elseif ($user->hasRole('State Head') && $userLocation['state_id']) {
+            $query->where('state_id', $userLocation['state_id']);
+        } elseif ($user->hasRole(['City Head', 'On/Off Trade Head']) && $userLocation['city_id']) {
+            $query->where('city_id', $userLocation['city_id']);
+        }
+
+        return response()->json(
+            $query->select('id', 'name')->orderBy('name')->get()
+        );
+    })->name('api.managers-by-role');
+
+    // Get roles that logged in user can create — used by employee form
+    Route::get('/api/creatable-roles', function () {
+        $creatableRoleNames = RoleAccessHelper::getCreatableRoles();
+        $roles = \Spatie\Permission\Models\Role::whereIn('name', $creatableRoleNames)->get(['id', 'name']);
+        return response()->json($roles);
+    })->name('api.creatable-roles');
+
+    Route::get('/api/zones', function () {
+        $zones = \App\Models\Zone::where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+        return response()->json($zones);
+    })->name('api.zones');
+
+    Route::get('/store-products/products-by-store/{storeId}', [StoreProductController::class, 'getProductsByStore'])
+        ->name('store-product.products-by-store');
+
 
     // ============================================
     // ZONE MASTER ROUTES
@@ -251,10 +350,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // ============================================
     Route::get('/company-masters', [CompanyMasterController::class, 'index'])
         ->name('company-master.index');
-    Route::get('/company-masters/create', [CompanyMasterController::class, 'create'])
-        ->name('company-master.create');
-    Route::post('/company-masters', [CompanyMasterController::class, 'store'])
-        ->name('company-master.store');
     Route::get('/company-masters/{id}/edit', [CompanyMasterController::class, 'edit'])
         ->name('company-master.edit');
     Route::post('/company-masters/{id}', [CompanyMasterController::class, 'update'])
@@ -267,7 +362,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('company-master.download-template');
     Route::post('/company-master/upload', [CompanyMasterController::class, 'uploadExcel'])
         ->name('company-master.upload');
-
     // ============================================
 // BRANCH MASTER ROUTES
 // ============================================
@@ -407,6 +501,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('employee-master.download-template');
     Route::post('/employee-masters/upload', [EmployeeMasterController::class, 'uploadExcel'])
         ->name('employee-master.upload');
+    Route::post('/employee-masters/check-promocode', [EmployeeMasterController::class, 'checkPromocodeAvailability'])
+        ->name('employee-master.check-promocode');
+    Route::post('/employee-masters/{employee}/toggle-promocode', [EmployeeMasterController::class, 'togglePromocode']);
+
 
     // Store Assignment Routes
     Route::get('/employee-masters/{id}/stores', [EmployeeMasterController::class, 'getAssignedStores'])
@@ -487,6 +585,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/store-management/stock/{transactionId}/reject', [StoreManagementController::class, 'rejectStock'])->name('store-management.stock.reject');
     Route::post('/store-management/stock/{transactionId}/deliver', [StoreManagementController::class, 'markStockDelivered'])->name('store-management.stock.deliver');
     Route::post('/store-management/stock/{transactionId}/return', [StoreManagementController::class, 'markStockReturned'])->name('store-management.stock.return');
+    Route::post('/store-management/orders/{orderId}/update-status', [StoreManagementController::class, 'updateOrderStatus'])
+        ->name('store-management.order.update-status');
+    Route::post('/store-management/orders/{orderId}/bulk-deliver', [StoreManagementController::class, 'bulkDeliverOrder'])
+        ->name('store-management.order.bulk-deliver');
 
     // Bulk actions
     Route::post('/store-management/visits/{visitId}/bulk-approve', [StoreManagementController::class, 'bulkApproveVisit'])->name('store-management.visit.bulk-approve');

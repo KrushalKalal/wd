@@ -30,6 +30,27 @@ export default function Details({ auth, store, visits }) {
         title: "",
     });
 
+    const [mapModal, setMapModal] = useState({
+        show: false,
+        latitude: null,
+        longitude: null,
+    });
+
+    // NEW: Invoice Modal
+    const [invoiceModal, setInvoiceModal] = useState({
+        show: false,
+        order: null,
+    });
+
+    // NEW: Order Status Modal
+    const [orderStatusModal, setOrderStatusModal] = useState({
+        show: false,
+        orderId: null,
+        currentStatus: null,
+    });
+    const [orderStatus, setOrderStatus] = useState("");
+    const [orderNotes, setOrderNotes] = useState("");
+
     const activeVisit = visits.find((v) => v.id === activeVisitId);
 
     const formatDuration = (minutes) => {
@@ -53,6 +74,12 @@ export default function Details({ auth, store, visits }) {
                 delivered: "bg-success text-white",
                 returned: "bg-danger text-white",
                 rejected: "bg-secondary text-white",
+            },
+            order: {
+                pending: "bg-warning text-dark",
+                confirmed: "bg-info text-white",
+                delivered: "bg-success text-white",
+                cancelled: "bg-danger text-white",
             },
         };
         return (
@@ -182,6 +209,64 @@ export default function Details({ auth, store, visits }) {
         }
     };
 
+    // NEW: Handle Invoice Modal
+    const handleViewInvoice = (order) => {
+        setInvoiceModal({ show: true, order });
+    };
+
+    const handleDownloadInvoice = (order) => {
+        if (order.invoice_pdf_path) {
+            window.open(`/storage/${order.invoice_pdf_path}`, "_blank");
+        } else {
+            setAlert({
+                show: true,
+                type: "error",
+                message: "Invoice PDF not available",
+            });
+        }
+    };
+
+    // NEW: Handle Order Status Update
+    const handleUpdateOrderStatus = (orderId, currentStatus) => {
+        setOrderStatusModal({ show: true, orderId, currentStatus });
+        setOrderStatus(currentStatus);
+        setOrderNotes("");
+    };
+
+    const submitOrderStatusUpdate = async () => {
+        try {
+            const response = await axios.post(
+                `/store-management/orders/${orderStatusModal.orderId}/update-status`,
+                {
+                    status: orderStatus,
+                    notes: orderNotes,
+                },
+            );
+
+            if (response.data.success) {
+                setAlert({
+                    show: true,
+                    type: "success",
+                    message: response.data.message,
+                });
+                setOrderStatusModal({
+                    show: false,
+                    orderId: null,
+                    currentStatus: null,
+                });
+                router.reload();
+            }
+        } catch (error) {
+            setAlert({
+                show: true,
+                type: "error",
+                message:
+                    error.response?.data?.message ||
+                    "Failed to update order status",
+            });
+        }
+    };
+
     const pendingSurveys =
         activeVisit?.question_answers?.filter(
             (a) =>
@@ -193,6 +278,39 @@ export default function Details({ auth, store, visits }) {
         activeVisit?.stock_transactions?.filter(
             (t) => t.status === "pending",
         ) || [];
+
+    const handleBulkDeliverOrder = async (orderId) => {
+        if (
+            !confirm(
+                "Mark this entire order as delivered? This will update stock levels.",
+            )
+        ) {
+            return;
+        }
+
+        try {
+            const response = await axios.post(
+                `/store-management/orders/${orderId}/bulk-deliver`,
+                { admin_remark: "Bulk delivered from admin panel" },
+            );
+
+            if (response.data.success) {
+                setAlert({
+                    show: true,
+                    type: "success",
+                    message: response.data.message,
+                });
+                router.reload();
+            }
+        } catch (error) {
+            setAlert({
+                show: true,
+                type: "error",
+                message:
+                    error.response?.data?.message || "Failed to deliver order",
+            });
+        }
+    };
 
     return (
         <MainLayout user={auth.user} title="Store Management Details">
@@ -351,10 +469,14 @@ export default function Details({ auth, store, visits }) {
                                                         ?.length || 0}{" "}
                                                     Surveys
                                                 </span>
-                                                <span className="badge bg-dark">
+                                                <span className="badge bg-dark me-2">
                                                     {visit.stock_transactions
                                                         ?.length || 0}{" "}
                                                     Stock
+                                                </span>
+                                                <span className="badge bg-info text-white">
+                                                    {visit.orders?.length || 0}{" "}
+                                                    Orders
                                                 </span>
                                             </div>
                                         </div>
@@ -421,6 +543,35 @@ export default function Details({ auth, store, visits }) {
                                                         )}
                                                     </td>
                                                 </tr>
+                                                {activeVisit.latitude &&
+                                                    activeVisit.longitude && (
+                                                        <tr>
+                                                            <td className="fw-semibold text-dark">
+                                                                Location:
+                                                            </td>
+                                                            <td>
+                                                                <button
+                                                                    className="btn btn-sm btn-dark text-white"
+                                                                    onClick={() =>
+                                                                        setMapModal(
+                                                                            {
+                                                                                show: true,
+                                                                                latitude:
+                                                                                    activeVisit.latitude,
+                                                                                longitude:
+                                                                                    activeVisit.longitude,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                    title="View on Map"
+                                                                >
+                                                                    <i className="fas fa-map-marker-alt me-2"></i>
+                                                                    View
+                                                                    Location
+                                                                </button>
+                                                            </td>
+                                                        </tr>
+                                                    )}
                                                 {activeVisit.visit_summary && (
                                                     <tr>
                                                         <td className="fw-semibold text-dark">
@@ -479,7 +630,7 @@ export default function Details({ auth, store, visits }) {
                                                 })}
                                             </div>
                                         </div>
-                                        <div>
+                                        <div className="mb-3">
                                             <h6 className="text-dark fw-semibold mb-2">
                                                 Stock Transactions:{" "}
                                                 {activeVisit.stock_transactions
@@ -511,10 +662,280 @@ export default function Details({ auth, store, visits }) {
                                                 })}
                                             </div>
                                         </div>
+                                        <div>
+                                            <h6 className="text-dark fw-semibold mb-2">
+                                                Orders:{" "}
+                                                {activeVisit.orders?.length ||
+                                                    0}
+                                            </h6>
+                                            <div className="d-flex gap-2 flex-wrap">
+                                                {[
+                                                    "pending",
+                                                    "confirmed",
+                                                    "delivered",
+                                                    "cancelled",
+                                                ].map((status) => {
+                                                    const count =
+                                                        activeVisit.orders?.filter(
+                                                            (o) =>
+                                                                o.status ===
+                                                                status,
+                                                        ).length || 0;
+                                                    return count > 0 ? (
+                                                        <span
+                                                            key={status}
+                                                            className={`badge ${getStatusBadge(status, "order").props.className}`}
+                                                        >
+                                                            {status.toUpperCase()}
+                                                            : {count}
+                                                        </span>
+                                                    ) : null;
+                                                })}
+                                            </div>
+                                            {activeVisit.orders &&
+                                                activeVisit.orders.length >
+                                                    0 && (
+                                                    <div className="mt-2">
+                                                        <strong className="text-dark">
+                                                            Total Sales: ₹
+                                                            {activeVisit.orders
+                                                                .reduce(
+                                                                    (
+                                                                        sum,
+                                                                        order,
+                                                                    ) =>
+                                                                        sum +
+                                                                        parseFloat(
+                                                                            order.total_amount ||
+                                                                                0,
+                                                                        ),
+                                                                    0,
+                                                                )
+                                                                .toFixed(2)}
+                                                        </strong>
+                                                    </div>
+                                                )}
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
+
+                        {/* ORDERS SECTION - NEW */}
+                        {activeVisit.orders &&
+                            activeVisit.orders.length > 0 && (
+                                <div className="card border-0 shadow-sm mb-4">
+                                    <div className="card-header bg-dark text-white border-0">
+                                        <h5 className="mb-0 text-white">
+                                            <i className="fas fa-shopping-cart me-2"></i>
+                                            Orders ({activeVisit.orders.length})
+                                        </h5>
+                                    </div>
+                                    <div className="card-body">
+                                        <div className="table-responsive">
+                                            <table className="table table-hover mb-0">
+                                                <thead className="table-light">
+                                                    <tr>
+                                                        <th className="text-dark">
+                                                            Order #
+                                                        </th>
+                                                        <th className="text-dark">
+                                                            Items
+                                                        </th>
+                                                        <th className="text-dark">
+                                                            Subtotal
+                                                        </th>
+                                                        <th className="text-dark">
+                                                            Discounts
+                                                        </th>
+                                                        <th className="text-dark">
+                                                            GST
+                                                        </th>
+                                                        <th className="text-dark">
+                                                            Total
+                                                        </th>
+                                                        <th className="text-dark">
+                                                            Status
+                                                        </th>
+                                                        <th className="text-dark">
+                                                            Actions
+                                                        </th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    {activeVisit.orders.map(
+                                                        (order) => (
+                                                            <tr key={order.id}>
+                                                                <td>
+                                                                    <div className="fw-bold text-dark">
+                                                                        {
+                                                                            order.order_number
+                                                                        }
+                                                                    </div>
+                                                                    <small className="text-muted">
+                                                                        {new Date(
+                                                                            order.created_at,
+                                                                        ).toLocaleString()}
+                                                                    </small>
+                                                                </td>
+                                                                <td>
+                                                                    <span className="badge bg-dark">
+                                                                        {
+                                                                            order
+                                                                                .items
+                                                                                .length
+                                                                        }{" "}
+                                                                        items
+                                                                    </span>
+                                                                </td>
+                                                                <td className="text-dark">
+                                                                    ₹
+                                                                    {parseFloat(
+                                                                        order.subtotal,
+                                                                    ).toFixed(
+                                                                        2,
+                                                                    )}
+                                                                </td>
+                                                                <td>
+                                                                    {(order.offer_discount >
+                                                                        0 ||
+                                                                        order.promocode_discount >
+                                                                            0) && (
+                                                                        <div>
+                                                                            {order.offer_discount >
+                                                                                0 && (
+                                                                                <div className="text-success small">
+                                                                                    Offer:
+                                                                                    -₹
+                                                                                    {parseFloat(
+                                                                                        order.offer_discount,
+                                                                                    ).toFixed(
+                                                                                        2,
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                            {order.promocode_discount >
+                                                                                0 && (
+                                                                                <div className="text-success small">
+                                                                                    Promo:
+                                                                                    -₹
+                                                                                    {parseFloat(
+                                                                                        order.promocode_discount,
+                                                                                    ).toFixed(
+                                                                                        2,
+                                                                                    )}
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                    {order.offer_discount ===
+                                                                        0 &&
+                                                                        order.promocode_discount ===
+                                                                            0 && (
+                                                                            <span className="text-muted">
+                                                                                —
+                                                                            </span>
+                                                                        )}
+                                                                </td>
+                                                                <td className="text-dark">
+                                                                    ₹
+                                                                    {(
+                                                                        parseFloat(
+                                                                            order.cgst ||
+                                                                                0,
+                                                                        ) +
+                                                                        parseFloat(
+                                                                            order.sgst ||
+                                                                                0,
+                                                                        ) +
+                                                                        parseFloat(
+                                                                            order.igst ||
+                                                                                0,
+                                                                        )
+                                                                    ).toFixed(
+                                                                        2,
+                                                                    )}
+                                                                </td>
+                                                                <td>
+                                                                    <strong className="text-dark">
+                                                                        ₹
+                                                                        {parseFloat(
+                                                                            order.total_amount,
+                                                                        ).toFixed(
+                                                                            2,
+                                                                        )}
+                                                                    </strong>
+                                                                </td>
+                                                                <td>
+                                                                    {getStatusBadge(
+                                                                        order.status,
+                                                                        "order",
+                                                                    )}
+                                                                </td>
+                                                                <td>
+                                                                    <div className="btn-group btn-group-sm">
+                                                                        <button
+                                                                            className="btn btn-dark"
+                                                                            onClick={() =>
+                                                                                handleViewInvoice(
+                                                                                    order,
+                                                                                )
+                                                                            }
+                                                                            title="View Invoice"
+                                                                        >
+                                                                            <i className="fas fa-file-invoice"></i>
+                                                                        </button>
+                                                                        <button
+                                                                            className="btn btn-outline-dark"
+                                                                            onClick={() =>
+                                                                                handleDownloadInvoice(
+                                                                                    order,
+                                                                                )
+                                                                            }
+                                                                            title="Download PDF"
+                                                                        >
+                                                                            <i className="fas fa-download"></i>
+                                                                        </button>
+                                                                        {order.status !==
+                                                                            "cancelled" && (
+                                                                            <button
+                                                                                className="btn btn-outline-dark"
+                                                                                onClick={() =>
+                                                                                    handleUpdateOrderStatus(
+                                                                                        order.id,
+                                                                                        order.status,
+                                                                                    )
+                                                                                }
+                                                                                title="Update Status"
+                                                                            >
+                                                                                <i className="fas fa-edit"></i>
+                                                                            </button>
+                                                                        )}
+                                                                        {order.status ===
+                                                                            "confirmed" && (
+                                                                            <button
+                                                                                className="btn btn-success"
+                                                                                onClick={() =>
+                                                                                    handleBulkDeliverOrder(
+                                                                                        order.id,
+                                                                                    )
+                                                                                }
+                                                                                title="Mark as Delivered"
+                                                                            >
+                                                                                <i className="fas fa-truck"></i>
+                                                                            </button>
+                                                                        )}
+                                                                    </div>
+                                                                </td>
+                                                            </tr>
+                                                        ),
+                                                    )}
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                         {/* SURVEY ANSWERS */}
                         <div className="card border-0 shadow-sm mb-4">
@@ -566,6 +987,69 @@ export default function Details({ auth, store, visits }) {
                                                                 </div>
                                                             )}
 
+                                                            {/* Count + Remark row */}
+                                                            {(answer.count !==
+                                                                null &&
+                                                                answer.count !==
+                                                                    undefined) ||
+                                                            answer.remark ? (
+                                                                <div className="row g-2 mb-3">
+                                                                    {answer.count !==
+                                                                        null &&
+                                                                        answer.count !==
+                                                                            undefined && (
+                                                                            <div className="col-auto">
+                                                                                <div className="bg-dark text-white px-3 py-2 rounded d-flex align-items-center gap-2">
+                                                                                    <i className="fas fa-hashtag"></i>
+                                                                                    <div>
+                                                                                        <div
+                                                                                            style={{
+                                                                                                fontSize:
+                                                                                                    "0.7rem",
+                                                                                                opacity: 0.7,
+                                                                                            }}
+                                                                                        >
+                                                                                            COUNT
+                                                                                        </div>
+                                                                                        <div
+                                                                                            className="fw-bold"
+                                                                                            style={{
+                                                                                                fontSize:
+                                                                                                    "1.1rem",
+                                                                                            }}
+                                                                                        >
+                                                                                            {
+                                                                                                answer.count
+                                                                                            }
+                                                                                        </div>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </div>
+                                                                        )}
+                                                                    {answer.remark && (
+                                                                        <div className="col">
+                                                                            <div className="bg-light border p-2 rounded h-100">
+                                                                                <div
+                                                                                    className="text-muted"
+                                                                                    style={{
+                                                                                        fontSize:
+                                                                                            "0.75rem",
+                                                                                    }}
+                                                                                >
+                                                                                    REMARK
+                                                                                </div>
+                                                                                <div className="text-dark small">
+                                                                                    {
+                                                                                        answer.remark
+                                                                                    }
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            ) : null}
+
+                                                            {/* Answer Image */}
                                                             {answer.answer_image && (
                                                                 <div className="mb-3">
                                                                     <button
@@ -589,6 +1073,7 @@ export default function Details({ auth, store, visits }) {
                                                                 </div>
                                                             )}
 
+                                                            {/* Admin Remark */}
                                                             {answer.admin_remark && (
                                                                 <div className="alert alert-secondary mb-3">
                                                                     <small>
@@ -692,6 +1177,21 @@ export default function Details({ auth, store, visits }) {
                                                                             ?.mrp
                                                                     }
                                                                 </small>
+                                                                {/* NEW: Show if linked to order */}
+                                                                {txn.order_id && (
+                                                                    <div className="mt-1">
+                                                                        <span className="badge bg-info text-white">
+                                                                            <i className="fas fa-link me-1"></i>
+                                                                            Order
+                                                                            #
+                                                                            {
+                                                                                txn
+                                                                                    .order
+                                                                                    ?.order_number
+                                                                            }
+                                                                        </span>
+                                                                    </div>
+                                                                )}
                                                             </td>
                                                             <td>
                                                                 <span
@@ -730,71 +1230,81 @@ export default function Details({ auth, store, visits }) {
                                                             </td>
                                                             <td>
                                                                 <div className="btn-group btn-group-sm">
-                                                                    {txn.status ===
-                                                                        "pending" && (
+                                                                    {/* Only show action buttons for non-order transactions OR show info for order-linked */}
+                                                                    {!txn.order_id ? (
                                                                         <>
-                                                                            <button
-                                                                                className="btn btn-success"
-                                                                                onClick={() =>
-                                                                                    handleStockAction(
-                                                                                        "approve",
-                                                                                        txn.id,
-                                                                                    )
-                                                                                }
-                                                                                title="Approve"
-                                                                            >
-                                                                                <i className="fas fa-check"></i>
-                                                                            </button>
-                                                                            <button
-                                                                                className="btn btn-danger"
-                                                                                onClick={() =>
-                                                                                    handleStockAction(
-                                                                                        "reject",
-                                                                                        txn.id,
-                                                                                    )
-                                                                                }
-                                                                                title="Reject"
-                                                                            >
-                                                                                <i className="fas fa-times"></i>
-                                                                            </button>
+                                                                            {txn.status ===
+                                                                                "pending" && (
+                                                                                <>
+                                                                                    <button
+                                                                                        className="btn btn-success"
+                                                                                        onClick={() =>
+                                                                                            handleStockAction(
+                                                                                                "approve",
+                                                                                                txn.id,
+                                                                                            )
+                                                                                        }
+                                                                                        title="Approve"
+                                                                                    >
+                                                                                        <i className="fas fa-check"></i>
+                                                                                    </button>
+                                                                                    <button
+                                                                                        className="btn btn-danger"
+                                                                                        onClick={() =>
+                                                                                            handleStockAction(
+                                                                                                "reject",
+                                                                                                txn.id,
+                                                                                            )
+                                                                                        }
+                                                                                        title="Reject"
+                                                                                    >
+                                                                                        <i className="fas fa-times"></i>
+                                                                                    </button>
+                                                                                </>
+                                                                            )}
+                                                                            {txn.status ===
+                                                                                "approved" &&
+                                                                                txn.type ===
+                                                                                    "add" && (
+                                                                                    <button
+                                                                                        className="btn btn-primary"
+                                                                                        onClick={() =>
+                                                                                            handleStockAction(
+                                                                                                "deliver",
+                                                                                                txn.id,
+                                                                                            )
+                                                                                        }
+                                                                                        title="Mark as Delivered"
+                                                                                    >
+                                                                                        <i className="fas fa-truck"></i>
+                                                                                    </button>
+                                                                                )}
+                                                                            {txn.status ===
+                                                                                "approved" &&
+                                                                                txn.type ===
+                                                                                    "return" && (
+                                                                                    <button
+                                                                                        className="btn btn-warning"
+                                                                                        onClick={() =>
+                                                                                            handleStockAction(
+                                                                                                "return",
+                                                                                                txn.id,
+                                                                                            )
+                                                                                        }
+                                                                                        title="Mark as Returned"
+                                                                                    >
+                                                                                        <i className="fas fa-undo"></i>
+                                                                                    </button>
+                                                                                )}
                                                                         </>
+                                                                    ) : (
+                                                                        <span className="badge bg-secondary">
+                                                                            <i className="fas fa-info-circle me-1"></i>
+                                                                            Managed
+                                                                            via
+                                                                            Order
+                                                                        </span>
                                                                     )}
-
-                                                                    {txn.status ===
-                                                                        "approved" &&
-                                                                        txn.type ===
-                                                                            "add" && (
-                                                                            <button
-                                                                                className="btn btn-primary"
-                                                                                onClick={() =>
-                                                                                    handleStockAction(
-                                                                                        "deliver",
-                                                                                        txn.id,
-                                                                                    )
-                                                                                }
-                                                                                title="Mark as Delivered"
-                                                                            >
-                                                                                <i className="fas fa-truck"></i>
-                                                                            </button>
-                                                                        )}
-
-                                                                    {txn.status ===
-                                                                        "approved" &&
-                                                                        txn.type ===
-                                                                            "return" && (
-                                                                            <button
-                                                                                className="btn btn-warning"
-                                                                                onClick={() =>
-                                                                                    handleStockAction(
-                                                                                        "return",
-                                                                                        txn.id,
-                                                                                    )
-                                                                                }
-                                                                                title="Mark as Returned"
-                                                                            >
-                                                                                <i className="fas fa-undo"></i>
-                                                                            </button>
-                                                                        )}
                                                                 </div>
                                                             </td>
                                                         </tr>
@@ -831,6 +1341,185 @@ export default function Details({ auth, store, visits }) {
                 )}
 
                 {/* MODALS */}
+
+                {/* INVOICE MODAL - FIXED TO DISPLAY PDF */}
+                {invoiceModal.show && invoiceModal.order && (
+                    <div
+                        className="modal show d-block"
+                        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                        onClick={() =>
+                            setInvoiceModal({ show: false, order: null })
+                        }
+                    >
+                        <div
+                            className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable"
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <div className="modal-content border-0 shadow-lg">
+                                <div className="modal-header bg-dark text-white border-0">
+                                    <h5 className="modal-title fw-bold text-white">
+                                        <i className="fas fa-file-invoice me-2"></i>
+                                        Invoice -{" "}
+                                        {invoiceModal.order.order_number}
+                                    </h5>
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={() =>
+                                            setInvoiceModal({
+                                                show: false,
+                                                order: null,
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className="modal-body p-0">
+                                    {/* Display PDF */}
+                                    {invoiceModal.order.invoice_pdf_path ? (
+                                        <iframe
+                                            src={`/storage/${invoiceModal.order.invoice_pdf_path}`}
+                                            style={{
+                                                width: "100%",
+                                                height: "75vh",
+                                                border: "none",
+                                            }}
+                                            title="Invoice PDF"
+                                        />
+                                    ) : (
+                                        <div className="text-center py-5">
+                                            <i className="fas fa-file-pdf fa-3x text-muted mb-3"></i>
+                                            <p className="text-muted">
+                                                Invoice PDF not available
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="modal-footer bg-light border-0">
+                                    <button
+                                        className="btn btn-light border"
+                                        onClick={() =>
+                                            setInvoiceModal({
+                                                show: false,
+                                                order: null,
+                                            })
+                                        }
+                                    >
+                                        <i className="fas fa-times me-2"></i>
+                                        Close
+                                    </button>
+                                    <button
+                                        className="btn btn-dark text-white"
+                                        onClick={() =>
+                                            handleDownloadInvoice(
+                                                invoiceModal.order,
+                                            )
+                                        }
+                                        disabled={
+                                            !invoiceModal.order.invoice_pdf_path
+                                        }
+                                    >
+                                        <i className="fas fa-download me-2"></i>
+                                        Download PDF
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* ORDER STATUS UPDATE MODAL - NEW */}
+                {orderStatusModal.show && (
+                    <div
+                        className="modal show d-block"
+                        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                    >
+                        <div className="modal-dialog modal-dialog-centered">
+                            <div className="modal-content border-0 shadow-lg">
+                                <div className="modal-header bg-dark text-white border-0">
+                                    <h5 className="modal-title text-white">
+                                        Update Order Status
+                                    </h5>
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={() =>
+                                            setOrderStatusModal({
+                                                show: false,
+                                                orderId: null,
+                                                currentStatus: null,
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className="modal-body">
+                                    <div className="mb-3">
+                                        <label className="form-label fw-semibold text-dark">
+                                            Status{" "}
+                                            <span className="text-danger">
+                                                *
+                                            </span>
+                                        </label>
+                                        <select
+                                            className="form-select"
+                                            value={orderStatus}
+                                            onChange={(e) =>
+                                                setOrderStatus(e.target.value)
+                                            }
+                                        >
+                                            <option value="pending">
+                                                Pending
+                                            </option>
+                                            <option value="confirmed">
+                                                Confirmed
+                                            </option>
+                                            <option value="delivered">
+                                                Delivered
+                                            </option>
+                                            <option value="cancelled">
+                                                Cancelled
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div className="mb-3">
+                                        <label className="form-label fw-semibold text-dark">
+                                            Notes
+                                        </label>
+                                        <textarea
+                                            className="form-control"
+                                            rows="3"
+                                            value={orderNotes}
+                                            onChange={(e) =>
+                                                setOrderNotes(e.target.value)
+                                            }
+                                            placeholder="Enter any additional notes..."
+                                        />
+                                    </div>
+                                </div>
+                                <div className="modal-footer bg-light border-0">
+                                    <button
+                                        className="btn btn-light border"
+                                        onClick={() =>
+                                            setOrderStatusModal({
+                                                show: false,
+                                                orderId: null,
+                                                currentStatus: null,
+                                            })
+                                        }
+                                    >
+                                        Cancel
+                                    </button>
+                                    <button
+                                        className="btn btn-dark text-white"
+                                        onClick={submitOrderStatusUpdate}
+                                    >
+                                        <i className="fas fa-save me-2"></i>
+                                        Update Status
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
                 {/* Review Survey Modal */}
                 {reviewModal.show && (
                     <div
@@ -1064,6 +1753,84 @@ export default function Details({ auth, store, visits }) {
                                                 "/images/placeholder-image.png";
                                         }}
                                     />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Map Modal */}
+                {mapModal.show && (
+                    <div
+                        className="modal show d-block"
+                        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+                    >
+                        <div className="modal-dialog modal-xl modal-dialog-centered">
+                            <div className="modal-content border-0 shadow-lg">
+                                <div className="modal-header bg-dark text-white border-0">
+                                    <h5 className="modal-title fw-bold text-white">
+                                        <i className="fas fa-map-marker-alt me-2"></i>
+                                        Check-in Location
+                                    </h5>
+                                    <button
+                                        type="button"
+                                        className="btn-close btn-close-white"
+                                        onClick={() =>
+                                            setMapModal({
+                                                show: false,
+                                                latitude: null,
+                                                longitude: null,
+                                            })
+                                        }
+                                    />
+                                </div>
+                                <div className="modal-body p-0">
+                                    {/* Embedded Google Maps */}
+                                    <iframe
+                                        width="100%"
+                                        height="500"
+                                        frameBorder="0"
+                                        style={{ border: 0 }}
+                                        src={`https://www.google.com/maps?q=${mapModal.latitude},${mapModal.longitude}&output=embed`}
+                                        allowFullScreen
+                                    ></iframe>
+
+                                    {/* Location Details */}
+                                    <div className="p-3 bg-light border-top">
+                                        <div className="row">
+                                            <div className="col-md-6">
+                                                <p className="mb-1">
+                                                    <strong className="text-dark">
+                                                        Latitude:
+                                                    </strong>{" "}
+                                                    <span className="text-muted">
+                                                        {mapModal.latitude}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                            <div className="col-md-6">
+                                                <p className="mb-1">
+                                                    <strong className="text-dark">
+                                                        Longitude:
+                                                    </strong>{" "}
+                                                    <span className="text-muted">
+                                                        {mapModal.longitude}
+                                                    </span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div className="mt-2">
+                                            <a
+                                                href={`https://www.google.com/maps?q=${mapModal.latitude},${mapModal.longitude}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="btn btn-sm btn-dark text-white"
+                                            >
+                                                <i className="fas fa-external-link-alt me-2"></i>
+                                                Open in Google Maps
+                                            </a>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>

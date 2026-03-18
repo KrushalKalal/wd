@@ -7,9 +7,67 @@ use App\Models\Zone;
 use App\Models\State;
 use App\Models\City;
 use App\Models\Area;
+use App\Models\Employee;
 
 class RoleAccessHelper
 {
+    // Role hierarchy — lower number = higher authority
+    const ROLE_HIERARCHY = [
+        'Master Admin' => 1,
+        'Country Head' => 2,
+        'Zonal Head' => 3,
+        'State Head' => 4,
+        'City Head' => 5,
+        'On/Off Trade Head' => 6,
+        'Sales Employee' => 7,
+    ];
+
+    // Who can create whom
+    const CREATABLE_ROLES = [
+        'Master Admin' => [
+            'Country Head',
+            'Zonal Head',
+            'State Head',
+            'City Head',
+            'On/Off Trade Head',
+            'Sales Employee'
+        ],
+        'Country Head' => [
+            'Zonal Head',
+            'State Head',
+            'City Head',
+            'On/Off Trade Head',
+            'Sales Employee'
+        ],
+        'Zonal Head' => [
+            'State Head',
+            'City Head',
+            'On/Off Trade Head',
+            'Sales Employee'
+        ],
+        'State Head' => [
+            'City Head',
+            'On/Off Trade Head',
+            'Sales Employee'
+        ],
+        'City Head' => [
+            'On/Off Trade Head',
+            'Sales Employee'
+        ],
+        'On/Off Trade Head' => ['Sales Employee'],
+        'Sales Employee' => [],
+    ];
+
+    // Who reports to whom
+    const MANAGER_ROLES = [
+        'Country Head' => ['Master Admin'],
+        'Zonal Head' => ['Country Head'],
+        'State Head' => ['Zonal Head'],
+        'City Head' => ['State Head'],
+        'On/Off Trade Head' => ['City Head'],
+        'Sales Employee' => ['On/Off Trade Head'],
+    ];
+
     /**
      * Apply role-based filtering to any query
      */
@@ -21,34 +79,30 @@ class RoleAccessHelper
             return $query;
         }
 
-        // Master Admin and Country Head see everything
         if ($user->hasRole(['Master Admin', 'Country Head'])) {
             return $query;
         }
 
         $employee = $user->employee;
         if (!$employee) {
-            return $query->whereRaw('1 = 0'); // Return empty if no employee record
+            return $query->whereRaw('1 = 0');
         }
 
         $tableName = $query->getModel()->getTable();
 
-        // Zonal Head - sees only their zone's data
         if ($user->hasRole('Zonal Head') && $employee->zone_id) {
             return self::filterByZone($query, $employee->zone_id, $tableName);
         }
 
-        // State Head - sees only their state's data
         if ($user->hasRole('State Head') && $employee->state_id) {
             return self::filterByState($query, $employee->state_id, $tableName);
         }
 
-        // City Head - sees only their city's data
-        if ($user->hasRole('City Head') && $employee->city_id) {
+        // City Head and On/Off Trade Head — same city level filter
+        if ($user->hasRole(['City Head', 'On/Off Trade Head']) && $employee->city_id) {
             return self::filterByCity($query, $employee->city_id, $tableName);
         }
 
-        // Sales Employee - sees only their assigned area's data
         if ($user->hasRole('Sales Employee')) {
             return self::filterBySalesEmployee($query, $employee, $tableName);
         }
@@ -61,40 +115,34 @@ class RoleAccessHelper
      */
     private static function filterByZone($query, $zoneId, $tableName)
     {
-        // Direct zone_id column (states, employees)
         if (\Schema::hasColumn($tableName, 'zone_id')) {
             return $query->where('zone_id', $zoneId);
         }
 
-        // Through state (cities, areas, branches, etc.)
         if (\Schema::hasColumn($tableName, 'state_id')) {
             return $query->whereHas('state', function ($q) use ($zoneId) {
                 $q->where('zone_id', $zoneId);
             });
         }
 
-        // Through city->state (areas, branches, etc.)
         if (\Schema::hasColumn($tableName, 'city_id')) {
             return $query->whereHas('city.state', function ($q) use ($zoneId) {
                 $q->where('zone_id', $zoneId);
             });
         }
 
-        // Through area->city->state (branches, stores, etc.)
         if (\Schema::hasColumn($tableName, 'area_id')) {
             return $query->whereHas('area.city.state', function ($q) use ($zoneId) {
                 $q->where('zone_id', $zoneId);
             });
         }
 
-        // Through store->state (store_products)
         if (\Schema::hasColumn($tableName, 'store_id')) {
             return $query->whereHas('store.state', function ($q) use ($zoneId) {
                 $q->where('zone_id', $zoneId);
             });
         }
 
-        // **NEW: Through employee->zone (employee_targets, store_visits, etc.)**
         if (\Schema::hasColumn($tableName, 'employee_id')) {
             return $query->whereHas('employee', function ($q) use ($zoneId) {
                 $q->where('zone_id', $zoneId);
@@ -109,33 +157,28 @@ class RoleAccessHelper
      */
     private static function filterByState($query, $stateId, $tableName)
     {
-        // Direct state_id column
         if (\Schema::hasColumn($tableName, 'state_id')) {
             return $query->where('state_id', $stateId);
         }
 
-        // Through city (areas, branches, etc.)
         if (\Schema::hasColumn($tableName, 'city_id')) {
             return $query->whereHas('city', function ($q) use ($stateId) {
                 $q->where('state_id', $stateId);
             });
         }
 
-        // Through area->city (branches, stores, etc.)
         if (\Schema::hasColumn($tableName, 'area_id')) {
             return $query->whereHas('area.city', function ($q) use ($stateId) {
                 $q->where('state_id', $stateId);
             });
         }
 
-        // Through store->state (store_products)
         if (\Schema::hasColumn($tableName, 'store_id')) {
             return $query->whereHas('store', function ($q) use ($stateId) {
                 $q->where('state_id', $stateId);
             });
         }
 
-        // **NEW: Through employee->state (employee_targets, store_visits, etc.)**
         if (\Schema::hasColumn($tableName, 'employee_id')) {
             return $query->whereHas('employee', function ($q) use ($stateId) {
                 $q->where('state_id', $stateId);
@@ -150,26 +193,22 @@ class RoleAccessHelper
      */
     private static function filterByCity($query, $cityId, $tableName)
     {
-        // Direct city_id column
         if (\Schema::hasColumn($tableName, 'city_id')) {
             return $query->where('city_id', $cityId);
         }
 
-        // Through area (branches, stores, etc.)
         if (\Schema::hasColumn($tableName, 'area_id')) {
             return $query->whereHas('area', function ($q) use ($cityId) {
                 $q->where('city_id', $cityId);
             });
         }
 
-        // Through store->city (store_products)
         if (\Schema::hasColumn($tableName, 'store_id')) {
             return $query->whereHas('store', function ($q) use ($cityId) {
                 $q->where('city_id', $cityId);
             });
         }
 
-        // **NEW: Through employee->city (employee_targets, store_visits, etc.)**
         if (\Schema::hasColumn($tableName, 'employee_id')) {
             return $query->whereHas('employee', function ($q) use ($cityId) {
                 $q->where('city_id', $cityId);
@@ -196,7 +235,6 @@ class RoleAccessHelper
             return $query->where('state_id', $employee->state_id);
         }
 
-        // Through store (store_products)
         if (\Schema::hasColumn($tableName, 'store_id')) {
             if ($employee->area_id) {
                 return $query->whereHas('store', function ($q) use ($employee) {
@@ -208,14 +246,8 @@ class RoleAccessHelper
                     $q->where('city_id', $employee->city_id);
                 });
             }
-            if ($employee->state_id) {
-                return $query->whereHas('store', function ($q) use ($employee) {
-                    $q->where('state_id', $employee->state_id);
-                });
-            }
         }
 
-        // **NEW: Through employee_id - only show own records (employee_targets, store_visits)**
         if (\Schema::hasColumn($tableName, 'employee_id')) {
             return $query->where('employee_id', $employee->id);
         }
@@ -224,15 +256,166 @@ class RoleAccessHelper
     }
 
     /**
-     * Get accessible zone IDs for current user
+     * Get location locks based on logged in user role
      */
-    public static function getAccessibleZoneIds()
+    public static function getLocationLocks(): array
+    {
+        $user = Auth::user();
+        $employee = $user->employee;
+
+        if ($user->hasRole(['Master Admin', 'Country Head'])) {
+            return [
+                'zone_id' => false,
+                'state_id' => false,
+                'city_id' => false,
+                'area_id' => false,
+                'zone_name' => null,
+                'state_name' => null,
+                'city_name' => null,
+            ];
+        }
+
+        if ($user->hasRole('Zonal Head')) {
+            return [
+                'zone_id' => true,
+                'state_id' => false,
+                'city_id' => false,
+                'area_id' => false,
+                'zone_name' => $employee?->zone?->name,
+                'state_name' => null,
+                'city_name' => null,
+            ];
+        }
+
+        if ($user->hasRole('State Head')) {
+            return [
+                'zone_id' => true,
+                'state_id' => true,
+                'city_id' => false,
+                'area_id' => false,
+                'zone_name' => $employee?->zone?->name,
+                'state_name' => $employee?->state?->name,
+                'city_name' => null,
+            ];
+        }
+
+        if ($user->hasRole(['City Head', 'On/Off Trade Head'])) {
+            return [
+                'zone_id' => true,
+                'state_id' => true,
+                'city_id' => true,
+                'area_id' => false,
+                'zone_name' => $employee?->zone?->name,
+                'state_name' => $employee?->state?->name,
+                'city_name' => $employee?->city?->name,
+            ];
+        }
+
+        // Sales Employee — full lock
+        return [
+            'zone_id' => true,
+            'state_id' => true,
+            'city_id' => true,
+            'area_id' => true,
+            'zone_name' => $employee?->zone?->name,
+            'state_name' => $employee?->state?->name,
+            'city_name' => $employee?->city?->name,
+        ];
+    }
+
+    /**
+     * Get logged in user location for pre-filling forms
+     */
+    public static function getUserLocation(): array
+    {
+        $user = Auth::user();
+        $employee = $user->employee;
+
+        return [
+            'zone_id' => $employee?->zone_id,
+            'zone_name' => $employee?->zone?->name,
+            'state_id' => $employee?->state_id,
+            'state_name' => $employee?->state?->name,
+            'city_id' => $employee?->city_id,
+            'city_name' => $employee?->city?->name,
+            'area_id' => $employee?->area_id,
+            'area_name' => $employee?->area?->name,
+        ];
+    }
+
+    /**
+     * Get roles that logged in user can create
+     */
+    public static function getCreatableRoles(): array
+    {
+        $user = Auth::user();
+        $userRole = $user->roles->first()?->name;
+
+        return self::CREATABLE_ROLES[$userRole] ?? [];
+    }
+
+    /**
+     * Get manager roles for a given role being created
+     */
+    public static function getManagerRoles(string $roleName): array
+    {
+        return self::MANAGER_ROLES[$roleName] ?? [];
+    }
+
+    /**
+     * Validate location access for logged in user
+     */
+    public static function validateLocationAccess(
+        ?int $stateId,
+        ?int $cityId
+    ): array {
+        $user = Auth::user();
+        $employee = $user->employee;
+
+        if ($user->hasRole(['Master Admin', 'Country Head'])) {
+            return ['valid' => true];
+        }
+
+        if ($user->hasRole('Zonal Head') && $employee?->zone_id) {
+            $state = State::find($stateId);
+            if ($state && $state->zone_id !== $employee->zone_id) {
+                return [
+                    'valid' => false,
+                    'message' => "This address is outside your zone ({$employee->zone->name})."
+                ];
+            }
+        }
+
+        if ($user->hasRole('State Head') && $employee?->state_id) {
+            if ($stateId && $stateId !== $employee->state_id) {
+                return [
+                    'valid' => false,
+                    'message' => "This address is outside your state ({$employee->state->name})."
+                ];
+            }
+        }
+
+        if ($user->hasRole(['City Head', 'On/Off Trade Head']) && $employee?->city_id) {
+            if ($cityId && $cityId !== $employee->city_id) {
+                return [
+                    'valid' => false,
+                    'message' => "This address is outside your city ({$employee->city->name})."
+                ];
+            }
+        }
+
+        return ['valid' => true];
+    }
+
+    /**
+     * Get accessible zone IDs
+     */
+    public static function getAccessibleZoneIds(): array
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (!$user)
             return [];
-        }
 
         if ($user->hasRole(['Master Admin', 'Country Head'])) {
             return Zone::pluck('id')->toArray();
@@ -240,7 +423,7 @@ class RoleAccessHelper
 
         $employee = $user->employee;
 
-        if ($user->hasRole('Zonal Head') && $employee && $employee->zone_id) {
+        if ($user->hasRole('Zonal Head') && $employee?->zone_id) {
             return [$employee->zone_id];
         }
 
@@ -248,15 +431,14 @@ class RoleAccessHelper
     }
 
     /**
-     * Get accessible state IDs for current user
+     * Get accessible state IDs
      */
-    public static function getAccessibleStateIds()
+    public static function getAccessibleStateIds(): array
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (!$user)
             return [];
-        }
 
         if ($user->hasRole(['Master Admin', 'Country Head'])) {
             return State::pluck('id')->toArray();
@@ -264,11 +446,11 @@ class RoleAccessHelper
 
         $employee = $user->employee;
 
-        if ($user->hasRole('Zonal Head') && $employee && $employee->zone_id) {
+        if ($user->hasRole('Zonal Head') && $employee?->zone_id) {
             return State::where('zone_id', $employee->zone_id)->pluck('id')->toArray();
         }
 
-        if ($user->hasRole('State Head') && $employee && $employee->state_id) {
+        if ($user->hasRole('State Head') && $employee?->state_id) {
             return [$employee->state_id];
         }
 
@@ -276,15 +458,14 @@ class RoleAccessHelper
     }
 
     /**
-     * Get accessible city IDs for current user
+     * Get accessible city IDs
      */
-    public static function getAccessibleCityIds()
+    public static function getAccessibleCityIds(): array
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (!$user)
             return [];
-        }
 
         if ($user->hasRole(['Master Admin', 'Country Head'])) {
             return City::pluck('id')->toArray();
@@ -292,16 +473,16 @@ class RoleAccessHelper
 
         $employee = $user->employee;
 
-        if ($user->hasRole('Zonal Head') && $employee && $employee->zone_id) {
+        if ($user->hasRole('Zonal Head') && $employee?->zone_id) {
             $stateIds = State::where('zone_id', $employee->zone_id)->pluck('id');
             return City::whereIn('state_id', $stateIds)->pluck('id')->toArray();
         }
 
-        if ($user->hasRole('State Head') && $employee && $employee->state_id) {
+        if ($user->hasRole('State Head') && $employee?->state_id) {
             return City::where('state_id', $employee->state_id)->pluck('id')->toArray();
         }
 
-        if ($user->hasRole('City Head') && $employee && $employee->city_id) {
+        if ($user->hasRole(['City Head', 'On/Off Trade Head']) && $employee?->city_id) {
             return [$employee->city_id];
         }
 
@@ -309,15 +490,14 @@ class RoleAccessHelper
     }
 
     /**
-     * Get accessible area IDs for current user
+     * Get accessible area IDs
      */
-    public static function getAccessibleAreaIds()
+    public static function getAccessibleAreaIds(): array
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (!$user)
             return [];
-        }
 
         if ($user->hasRole(['Master Admin', 'Country Head'])) {
             return Area::pluck('id')->toArray();
@@ -325,18 +505,18 @@ class RoleAccessHelper
 
         $employee = $user->employee;
 
-        if ($user->hasRole('Zonal Head') && $employee && $employee->zone_id) {
+        if ($user->hasRole('Zonal Head') && $employee?->zone_id) {
             $stateIds = State::where('zone_id', $employee->zone_id)->pluck('id');
             $cityIds = City::whereIn('state_id', $stateIds)->pluck('id');
             return Area::whereIn('city_id', $cityIds)->pluck('id')->toArray();
         }
 
-        if ($user->hasRole('State Head') && $employee && $employee->state_id) {
+        if ($user->hasRole('State Head') && $employee?->state_id) {
             $cityIds = City::where('state_id', $employee->state_id)->pluck('id');
             return Area::whereIn('city_id', $cityIds)->pluck('id')->toArray();
         }
 
-        if ($user->hasRole('City Head') && $employee && $employee->city_id) {
+        if ($user->hasRole(['City Head', 'On/Off Trade Head']) && $employee?->city_id) {
             return Area::where('city_id', $employee->city_id)->pluck('id')->toArray();
         }
 
@@ -344,48 +524,35 @@ class RoleAccessHelper
     }
 
     /**
-     * Get accessible employee IDs for current user (for dropdowns and filters)
+     * Get accessible employee IDs
      */
-    public static function getAccessibleEmployeeIds()
+    public static function getAccessibleEmployeeIds(): array
     {
         $user = Auth::user();
 
-        if (!$user) {
+        if (!$user)
             return [];
-        }
 
-        // Master Admin and Country Head see all employees
         if ($user->hasRole(['Master Admin', 'Country Head'])) {
-            return \App\Models\Employee::pluck('id')->toArray();
+            return Employee::pluck('id')->toArray();
         }
 
         $employee = $user->employee;
-        if (!$employee) {
+        if (!$employee)
             return [];
-        }
 
-        // Zonal Head - sees employees in their zone
         if ($user->hasRole('Zonal Head') && $employee->zone_id) {
-            return \App\Models\Employee::where('zone_id', $employee->zone_id)
-                ->pluck('id')
-                ->toArray();
+            return Employee::where('zone_id', $employee->zone_id)->pluck('id')->toArray();
         }
 
-        // State Head - sees employees in their state
         if ($user->hasRole('State Head') && $employee->state_id) {
-            return \App\Models\Employee::where('state_id', $employee->state_id)
-                ->pluck('id')
-                ->toArray();
+            return Employee::where('state_id', $employee->state_id)->pluck('id')->toArray();
         }
 
-        // City Head - sees employees in their city
-        if ($user->hasRole('City Head') && $employee->city_id) {
-            return \App\Models\Employee::where('city_id', $employee->city_id)
-                ->pluck('id')
-                ->toArray();
+        if ($user->hasRole(['City Head', 'On/Off Trade Head']) && $employee->city_id) {
+            return Employee::where('city_id', $employee->city_id)->pluck('id')->toArray();
         }
 
-        // Sales Employee - only sees themselves
         if ($user->hasRole('Sales Employee')) {
             return [$employee->id];
         }

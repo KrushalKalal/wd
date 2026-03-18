@@ -43,12 +43,14 @@ class QuestionMasterController extends Controller
     {
         $request->validate([
             'question_text' => 'required|string',
+            'is_count' => 'nullable|boolean',
         ]);
 
         try {
             Question::create([
                 'question_text' => $request->question_text,
                 'is_active' => true,
+                'is_count' => $request->boolean('is_count', false),
             ]);
 
             return redirect()->route('question-master.index')
@@ -74,12 +76,14 @@ class QuestionMasterController extends Controller
     {
         $request->validate([
             'question_text' => 'required|string',
+            'is_count' => 'nullable|boolean',
         ]);
 
         try {
             $question = Question::findOrFail($id);
             $question->update([
                 'question_text' => $request->question_text,
+                'is_count' => $request->boolean('is_count', false),
             ]);
 
             return redirect()->route('question-master.index')
@@ -132,6 +136,10 @@ class QuestionMasterController extends Controller
             $sheet->getStyle('A1')->getFont()->setBold(true);
             $sheet->getColumnDimension('A')->setAutoSize(true);
 
+            $sheet->setCellValue('B1', 'Count Required (Yes/No)');
+            $sheet->getStyle('B1')->getFont()->setBold(true);
+            $sheet->getColumnDimension('B')->setAutoSize(true);
+
             $writer = new Xlsx($spreadsheet);
             $filename = 'question_template_' . now()->format('Ymd_His') . '.xlsx';
 
@@ -165,6 +173,7 @@ class QuestionMasterController extends Controller
 
             foreach (array_slice($rows, 1) as $index => $row) {
                 $questionText = trim($row['A'] ?? '');
+                $isCount = strtolower(trim($row['B'] ?? 'no')) === 'yes';
 
                 if (!$questionText) {
                     $errors[] = "Row " . ($index + 2) . ": Question text is required";
@@ -181,6 +190,7 @@ class QuestionMasterController extends Controller
                 Question::create([
                     'question_text' => $questionText,
                     'is_active' => true,
+                    'is_count' => $isCount,
                 ]);
 
                 $imported++;

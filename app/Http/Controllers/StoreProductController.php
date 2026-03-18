@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\StoreProduct;
-use App\Models\Store;
-use App\Models\Product;
-use App\Models\State;
 use App\Helpers\RoleAccessHelper;
+use App\Models\Product;
+use App\Models\Store;
+use App\Models\StoreProduct;
+use App\Models\State;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -22,48 +22,41 @@ class StoreProductController extends Controller
             'store.state.zone',
             'store.city',
             'store.area',
-            'product'
+            'product',
         ]);
 
-        // Apply role-based filter (filters through store relationship)
         $query = RoleAccessHelper::applyRoleFilter($query);
 
-        // Search
         if ($request->has('search') && $request->search) {
             $query->where(function ($q) use ($request) {
-                $q->whereHas('store', function ($storeQuery) use ($request) {
-                    $storeQuery->where('name', 'like', '%' . $request->search . '%');
-                })->orWhereHas('product', function ($productQuery) use ($request) {
-                    $productQuery->where('name', 'like', '%' . $request->search . '%');
+                $q->whereHas('store', function ($sq) use ($request) {
+                    $sq->where('name', 'like', '%' . $request->search . '%');
+                })->orWhereHas('product', function ($pq) use ($request) {
+                    $pq->where('name', 'like', '%' . $request->search . '%');
                 });
             });
         }
 
-        // Filter by store
         if ($request->has('store_id') && $request->store_id) {
             $query->where('store_id', $request->store_id);
         }
 
-        // Filter by product
         if ($request->has('product_id') && $request->product_id) {
             $query->where('product_id', $request->product_id);
         }
 
-        // Filter by state (via store)
         if ($request->has('state_id') && $request->state_id) {
             $query->whereHas('store', function ($q) use ($request) {
                 $q->where('state_id', $request->state_id);
             });
         }
 
-        // Filter by city (via store)
         if ($request->has('city_id') && $request->city_id) {
             $query->whereHas('store', function ($q) use ($request) {
                 $q->where('city_id', $request->city_id);
             });
         }
 
-        // Filter by area (via store)
         if ($request->has('area_id') && $request->area_id) {
             $query->whereHas('store', function ($q) use ($request) {
                 $q->where('area_id', $request->area_id);
@@ -73,15 +66,15 @@ class StoreProductController extends Controller
         $perPage = $request->get('per_page', 10);
         $storeProducts = $query->orderBy('id', 'desc')->paginate($perPage);
 
-        // Get accessible stores based on role
         $storesQuery = Store::where('is_active', true);
         $storesQuery = RoleAccessHelper::applyRoleFilter($storesQuery);
         $stores = $storesQuery->select('id', 'name')->orderBy('name')->get();
 
-        // Get all products
-        $products = Product::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        $products = Product::where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
-        // Get accessible states based on role
         $stateIds = RoleAccessHelper::getAccessibleStateIds();
         $states = State::whereIn('id', $stateIds)
             ->where('is_active', true)
@@ -108,17 +101,14 @@ class StoreProductController extends Controller
 
     public function create()
     {
-        // Get accessible stores based on role
         $storesQuery = Store::where('is_active', true);
         $storesQuery = RoleAccessHelper::applyRoleFilter($storesQuery);
-        $stores = $storesQuery->select('id', 'name')->orderBy('name')->get();
+        $stores = $storesQuery->select('id', 'name', 'state_id')->orderBy('name')->get();
 
-        // Get all products
-        $products = Product::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
-
+        // Products loaded empty — populated via AJAX when store is selected
         return Inertia::render('StoreProduct/Form', [
             'stores' => $stores,
-            'products' => $products,
+            'products' => [],
         ]);
     }
 
@@ -131,7 +121,6 @@ class StoreProductController extends Controller
         ]);
 
         try {
-            // Check if already exists
             $existing = StoreProduct::where('store_id', $request->store_id)
                 ->where('product_id', $request->product_id)
                 ->first();
@@ -164,13 +153,19 @@ class StoreProductController extends Controller
     {
         $storeProduct = StoreProduct::with(['store', 'product'])->findOrFail($id);
 
-        // Get accessible stores based on role
         $storesQuery = Store::where('is_active', true);
         $storesQuery = RoleAccessHelper::applyRoleFilter($storesQuery);
-        $stores = $storesQuery->select('id', 'name')->orderBy('name')->get();
+        $stores = $storesQuery->select('id', 'name', 'state_id')->orderBy('name')->get();
 
-        // Get all products
-        $products = Product::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        // Load products matching store's state_id for edit
+        $products = [];
+        if ($storeProduct->store?->state_id) {
+            $products = Product::where('is_active', true)
+                ->where('state_id', $storeProduct->store->state_id)
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+        }
 
         return Inertia::render('StoreProduct/Form', [
             'storeProduct' => $storeProduct,
@@ -190,7 +185,6 @@ class StoreProductController extends Controller
         try {
             $storeProduct = StoreProduct::findOrFail($id);
 
-            // Check if combination already exists (excluding current record)
             $existing = StoreProduct::where('store_id', $request->store_id)
                 ->where('product_id', $request->product_id)
                 ->where('id', '!=', $id)
@@ -221,9 +215,7 @@ class StoreProductController extends Controller
     public function destroy($id)
     {
         try {
-            $storeProduct = StoreProduct::findOrFail($id);
-            $storeProduct->delete();
-
+            StoreProduct::findOrFail($id)->delete();
             return redirect()->back()->with('success', 'Store product deleted successfully');
         } catch (\Throwable $e) {
             Log::error('Store product deletion failed: ' . $e->getMessage());
@@ -231,50 +223,73 @@ class StoreProductController extends Controller
         }
     }
 
+    /**
+     * API — Get products matching store's state_id
+     * Called via AJAX when store is selected in form
+     */
+    public function getProductsByStore($storeId)
+    {
+        $store = Store::find($storeId);
+
+        if (!$store) {
+            return response()->json([]);
+        }
+
+        // If store has no state, return all active products
+        if (!$store->state_id) {
+            $products = Product::where('is_active', true)
+                ->select('id', 'name')
+                ->orderBy('name')
+                ->get();
+            return response()->json($products);
+        }
+
+        // Return products matching store's state
+        $products = Product::where('is_active', true)
+            ->where('state_id', $store->state_id)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        return response()->json($products);
+    }
+
     public function downloadTemplate()
     {
         try {
-            // Get accessible stores based on role
             $storesQuery = Store::where('is_active', true);
             $storesQuery = RoleAccessHelper::applyRoleFilter($storesQuery);
             $stores = $storesQuery->orderBy('name')->pluck('name')->toArray();
 
-            // Get all products
-            $products = Product::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
+            $products = Product::where('is_active', true)
+                ->orderBy('name')
+                ->pluck('name')
+                ->toArray();
 
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle('Store Products');
 
-            // Headers
-            $headers = [
-                'Store Name',
-                'Product Name',
-                'Current Stock'
-            ];
+            $headers = ['Store Name', 'Product Name', 'Current Stock'];
             $col = 'A';
             foreach ($headers as $header) {
                 $sheet->setCellValue($col . '1', $header);
                 $col++;
             }
 
-            // Styling
             $headerStyle = [
                 'font' => ['bold' => true],
                 'fill' => [
                     'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                    'startColor' => ['argb' => 'FFE0E0E0']
-                ]
+                    'startColor' => ['argb' => 'FFE0E0E0'],
+                ],
             ];
             $sheet->getStyle('A1:C1')->applyFromArray($headerStyle);
 
-            // Create dropdown lists
             $storeList = '"' . implode(',', $stores) . '"';
             $productList = '"' . implode(',', $products) . '"';
 
-            // Add dropdowns
             for ($row = 2; $row <= 1000; $row++) {
-                // Store dropdown (Column A)
                 $validation = $sheet->getCell('A' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_STOP);
@@ -282,7 +297,6 @@ class StoreProductController extends Controller
                 $validation->setShowDropDown(true);
                 $validation->setFormula1($storeList);
 
-                // Product dropdown (Column B)
                 $validation = $sheet->getCell('B' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_STOP);
@@ -290,11 +304,9 @@ class StoreProductController extends Controller
                 $validation->setShowDropDown(true);
                 $validation->setFormula1($productList);
 
-                // Default stock
                 $sheet->setCellValue('C' . $row, 0);
             }
 
-            // Auto-size columns
             foreach (range('A', 'C') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
@@ -339,7 +351,6 @@ class StoreProductController extends Controller
                     continue;
                 }
 
-                // Find store (with role-based access check)
                 $storeQuery = Store::where('is_active', true)
                     ->whereRaw('LOWER(name) = ?', [strtolower($storeName)]);
                 $storeQuery = RoleAccessHelper::applyRoleFilter($storeQuery);
@@ -350,25 +361,28 @@ class StoreProductController extends Controller
                     continue;
                 }
 
-                // Find product
-                $product = Product::where('is_active', true)
-                    ->whereRaw('LOWER(name) = ?', [strtolower($productName)])
-                    ->first();
+                // Product must match store's state
+                $productQuery = Product::where('is_active', true)
+                    ->whereRaw('LOWER(name) = ?', [strtolower($productName)]);
+
+                if ($store->state_id) {
+                    $productQuery->where('state_id', $store->state_id);
+                }
+
+                $product = $productQuery->first();
+
                 if (!$product) {
-                    $errors[] = "Row " . ($index + 2) . ": Product '{$productName}' not found";
+                    $errors[] = "Row " . ($index + 2) . ": Product '{$productName}' not found or does not match store's state";
                     continue;
                 }
 
-                // Check if already exists
                 $existing = StoreProduct::where('store_id', $store->id)
                     ->where('product_id', $product->id)
                     ->first();
 
                 if ($existing) {
-                    // Update existing
                     $existing->update(['current_stock' => $currentStock]);
                 } else {
-                    // Create new
                     StoreProduct::create([
                         'store_id' => $store->id,
                         'product_id' => $product->id,

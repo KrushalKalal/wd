@@ -2,8 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Helpers\RoleAccessHelper;
 use App\Models\Product;
 use App\Models\ProductCategory;
+use App\Models\State;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -17,29 +19,50 @@ class ProductMasterController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Product::with(['pCategory']);
+        $query = Product::with(['pCategory', 'state']);
 
-        // Search
+        // Apply role-based filter
+        $query = RoleAccessHelper::applyRoleFilter($query);
+
         if ($request->has('search') && $request->search) {
-            $query->where('name', 'like', '%' . $request->search . '%');
+            $query->where(function ($q) use ($request) {
+                $q->where('name', 'like', '%' . $request->search . '%')
+                    ->orWhere('sku', 'like', '%' . $request->search . '%');
+            });
         }
 
-        // Filter by product category
         if ($request->has('p_category_id') && $request->p_category_id) {
             $query->where('p_category_id', $request->p_category_id);
+        }
+
+        if ($request->has('state_id') && $request->state_id) {
+            $query->where('state_id', $request->state_id);
         }
 
         $perPage = $request->get('per_page', 10);
         $products = $query->orderBy('name')->paginate($perPage);
 
-        $productCategories = ProductCategory::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        $productCategories = ProductCategory::where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        // Role based states
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
 
         return Inertia::render('ProductMaster/Index', [
             'records' => $products,
             'productCategories' => $productCategories,
+            'states' => $states,
             'filters' => [
                 'search' => $request->search,
                 'p_category_id' => $request->p_category_id,
+                'state_id' => $request->state_id,
                 'per_page' => $perPage,
             ],
         ]);
@@ -47,10 +70,27 @@ class ProductMasterController extends Controller
 
     public function create()
     {
-        $productCategories = ProductCategory::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        $productCategories = ProductCategory::where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        // Role based states
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $userLocation = RoleAccessHelper::getUserLocation();
+        $locationLocks = RoleAccessHelper::getLocationLocks();
 
         return Inertia::render('ProductMaster/Form', [
             'productCategories' => $productCategories,
+            'states' => $states,
+            'userLocation' => $userLocation,
+            'locationLocks' => $locationLocks,
         ]);
     }
 
@@ -58,27 +98,36 @@ class ProductMasterController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'sku' => 'required|string|max:100|unique:products,sku',
             'p_category_id' => 'required|exists:product_categories,id',
             'mrp' => 'required|numeric|min:0',
             'edd' => 'nullable|numeric|min:0',
+            'pack_size' => 'nullable|integer|min:0',
+            'volume' => 'nullable|integer|min:0',
+            'state_id' => 'nullable|exists:states,id',
             'total_stock' => 'nullable|integer|min:0',
             'catalogue_pdf' => 'nullable|file|mimes:pdf|max:10240',
+            'image' => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
         ]);
 
         try {
-            $data = $request->except('catalogue_pdf');
+            $data = $request->except(['catalogue_pdf', 'image']);
             $data['is_active'] = true;
 
-            if ($request->hasFile('catalogue_pdf')) {
-                $productName = $request->input('name');
-                $productFolder = 'products/' . Str::slug($productName);
+            // Handle image upload
+            if ($request->hasFile('image')) {
+                $folder = 'products/' . Str::slug($request->name);
+                $file = $request->file('image');
+                $fileName = 'image_' . time() . '.' . $file->getClientOriginalExtension();
+                $data['image'] = $file->storeAs($folder, $fileName, 'public');
+            }
 
-                // Store file in the product-specific folder
+            // Handle catalogue PDF upload
+            if ($request->hasFile('catalogue_pdf')) {
+                $folder = 'products/' . Str::slug($request->name);
                 $file = $request->file('catalogue_pdf');
                 $fileName = time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.pdf';
-                $pdfPath = $file->storeAs($productFolder, $fileName, 'public');
-
-                $data['catalogue_pdf'] = $pdfPath;
+                $data['catalogue_pdf'] = $file->storeAs($folder, $fileName, 'public');
             }
 
             Product::create($data);
@@ -95,14 +144,29 @@ class ProductMasterController extends Controller
 
     public function edit($id)
     {
-        $product = Product::with(['pCategory'])
-            ->findOrFail($id);
+        $product = Product::with(['pCategory', 'state'])->findOrFail($id);
 
-        $productCategories = ProductCategory::where('is_active', true)->select('id', 'name')->orderBy('name')->get();
+        $productCategories = ProductCategory::where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $stateIds = RoleAccessHelper::getAccessibleStateIds();
+        $states = State::whereIn('id', $stateIds)
+            ->where('is_active', true)
+            ->select('id', 'name')
+            ->orderBy('name')
+            ->get();
+
+        $userLocation = RoleAccessHelper::getUserLocation();
+        $locationLocks = RoleAccessHelper::getLocationLocks();
 
         return Inertia::render('ProductMaster/Form', [
             'product' => $product,
             'productCategories' => $productCategories,
+            'states' => $states,
+            'userLocation' => $userLocation,
+            'locationLocks' => $locationLocks,
         ]);
     }
 
@@ -110,33 +174,42 @@ class ProductMasterController extends Controller
     {
         $request->validate([
             'name' => 'required|string|max:255',
+            'sku' => 'required|string|max:100|unique:products,sku,' . $id,
             'p_category_id' => 'required|exists:product_categories,id',
-            'mrp' => 'required|numeric|min:0',  
+            'mrp' => 'required|numeric|min:0',
             'edd' => 'nullable|numeric|min:0',
+            'pack_size' => 'nullable|integer|min:0',
+            'volume' => 'nullable|integer|min:0',
+            'state_id' => 'nullable|exists:states,id',
             'total_stock' => 'nullable|integer|min:0',
             'catalogue_pdf' => 'nullable|file|mimes:pdf|max:10240',
+            'image' => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
         ]);
 
         try {
             $product = Product::findOrFail($id);
-            $data = $request->except('catalogue_pdf');
+            $data = $request->except(['catalogue_pdf', 'image']);
 
-            // Handle PDF upload
+            // Handle image upload
+            if ($request->hasFile('image')) {
+                if ($product->image && Storage::disk('public')->exists($product->image)) {
+                    Storage::disk('public')->delete($product->image);
+                }
+                $folder = 'products/' . Str::slug($request->name);
+                $file = $request->file('image');
+                $fileName = 'image_' . time() . '.' . $file->getClientOriginalExtension();
+                $data['image'] = $file->storeAs($folder, $fileName, 'public');
+            }
+
+            // Handle catalogue PDF upload
             if ($request->hasFile('catalogue_pdf')) {
-                // Delete old PDF if exists
                 if ($product->catalogue_pdf && Storage::disk('public')->exists($product->catalogue_pdf)) {
                     Storage::disk('public')->delete($product->catalogue_pdf);
                 }
-
-                $productName = $request->input('name');
-                $productFolder = 'products/' . Str::slug($productName);
-
-                // Store new file in the product-specific folder
+                $folder = 'products/' . Str::slug($request->name);
                 $file = $request->file('catalogue_pdf');
                 $fileName = time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.pdf';
-                $pdfPath = $file->storeAs($productFolder, $fileName, 'public');
-
-                $data['catalogue_pdf'] = $pdfPath;
+                $data['catalogue_pdf'] = $file->storeAs($folder, $fileName, 'public');
             }
 
             $product->update($data);
@@ -156,12 +229,16 @@ class ProductMasterController extends Controller
         try {
             $product = Product::findOrFail($id);
 
-            // Delete associated PDF if exists
+            if ($product->image && Storage::disk('public')->exists($product->image)) {
+                Storage::disk('public')->delete($product->image);
+            }
+
             if ($product->catalogue_pdf && Storage::disk('public')->exists($product->catalogue_pdf)) {
                 Storage::disk('public')->delete($product->catalogue_pdf);
+            }
 
-                // Optionally, delete the entire product folder if empty
-                $folderPath = dirname($product->catalogue_pdf);
+            $folderPath = 'products/' . Str::slug($product->name);
+            if (Storage::disk('public')->exists($folderPath)) {
                 $files = Storage::disk('public')->files($folderPath);
                 if (empty($files)) {
                     Storage::disk('public')->deleteDirectory($folderPath);
@@ -183,7 +260,6 @@ class ProductMasterController extends Controller
             $product = Product::findOrFail($id);
             $product->is_active = !$product->is_active;
             $product->save();
-
             return redirect()->back()->with('success', 'Product status updated successfully');
         } catch (\Throwable $e) {
             Log::error('Product toggle failed: ' . $e->getMessage());
@@ -194,56 +270,74 @@ class ProductMasterController extends Controller
     public function downloadTemplate()
     {
         try {
-            $productCategories = ProductCategory::where('is_active', true)->orderBy('name')->pluck('name')->toArray();
+            $productCategories = ProductCategory::where('is_active', true)
+                ->orderBy('name')
+                ->pluck('name')
+                ->toArray();
+
+            $stateIds = RoleAccessHelper::getAccessibleStateIds();
+            $states = State::whereIn('id', $stateIds)
+                ->where('is_active', true)
+                ->orderBy('name')
+                ->pluck('name')
+                ->toArray();
 
             $spreadsheet = new Spreadsheet();
             $sheet = $spreadsheet->getActiveSheet();
             $sheet->setTitle('Products');
 
-            // Headers
             $headers = [
-                'Product Name',
-                'Product Category',
-                'MRP',
-                'Price',
+                'Product Name *',
+                'SKU *',
+                'Product Category *',
+                'Price (MRP) *',
+                'Pack Size',
+                'Volume',
+                'State',
                 'EDD',
-                'Total Stock'
+                'Total Stock',
             ];
+
             $col = 'A';
             foreach ($headers as $header) {
                 $sheet->setCellValue($col . '1', $header);
                 $col++;
             }
 
-            // Styling
             $headerStyle = [
                 'font' => ['bold' => true],
                 'fill' => [
                     'fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID,
-                    'startColor' => ['argb' => 'FFE0E0E0']
-                ]
+                    'startColor' => ['argb' => 'FFE0E0E0'],
+                ],
             ];
-            $sheet->getStyle('A1:F1')->applyFromArray($headerStyle);
+            $sheet->getStyle('A1:I1')->applyFromArray($headerStyle);
 
-            // Create dropdown list
             $pCatList = '"' . implode(',', $productCategories) . '"';
+            $stateList = '"' . implode(',', $states) . '"';
 
-            // Add dropdowns
             for ($row = 2; $row <= 1000; $row++) {
-                // Product Category dropdown (Column B)
-                $validation = $sheet->getCell('B' . $row)->getDataValidation();
+                // Product Category Column C
+                $validation = $sheet->getCell('C' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_STOP);
                 $validation->setAllowBlank(false);
                 $validation->setShowDropDown(true);
                 $validation->setFormula1($pCatList);
 
+                // State Column G
+                $validation = $sheet->getCell('G' . $row)->getDataValidation();
+                $validation->setType(DataValidation::TYPE_LIST);
+                $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
+                $validation->setAllowBlank(true);
+                $validation->setShowDropDown(true);
+                $validation->setFormula1($stateList);
+
                 // Default stock
-                $sheet->setCellValue('F' . $row, 0);
+                $sheet->setCellValue('I' . $row, 0);
             }
 
-            // Auto-size columns
-            foreach (range('A', 'F') as $col) {
+            foreach (range('A', 'I') as $col) {
                 $sheet->getColumnDimension($col)->setAutoSize(true);
             }
 
@@ -278,34 +372,51 @@ class ProductMasterController extends Controller
             $errors = [];
 
             foreach (array_slice($rows, 1) as $index => $row) {
-                $productName = trim($row['A'] ?? '');
-                $pCatName = trim($row['B'] ?? '');
-                $mrp = trim($row['C'] ?? '');
-                $price = trim($row['D'] ?? '');
-                $edd = trim($row['E'] ?? '');
-                $totalStock = trim($row['F'] ?? 0);
+                $name = trim($row['A'] ?? '');
+                $sku = trim($row['B'] ?? '');
+                $pCatName = trim($row['C'] ?? '');
+                $mrp = trim($row['D'] ?? '');
+                $packSize = trim($row['E'] ?? '');
+                $volume = trim($row['F'] ?? '');
+                $stateName = trim($row['G'] ?? '');
+                $edd = trim($row['H'] ?? '');
+                $totalStock = trim($row['I'] ?? 0);
 
-                if (!$productName || !$pCatName || !$mrp || !$price) {
-                    $errors[] = "Row " . ($index + 2) . ": Product name, category, MRP, and Price are required";
+                if (!$name || !$sku || !$pCatName || !$mrp) {
+                    $errors[] = "Row " . ($index + 2) . ": Name, SKU, Category and Price are required";
                     continue;
                 }
 
-                // Find product category
+                // Check SKU unique
+                $skuExists = Product::where('sku', $sku)->first();
+                if ($skuExists) {
+                    $errors[] = "Row " . ($index + 2) . ": SKU '{$sku}' already exists";
+                    continue;
+                }
+
                 $pCat = ProductCategory::whereRaw('LOWER(name) = ?', [strtolower($pCatName)])->first();
                 if (!$pCat) {
                     $errors[] = "Row " . ($index + 2) . ": Product Category '{$pCatName}' not found";
                     continue;
                 }
 
+                $stateId = null;
+                if ($stateName) {
+                    $state = State::whereRaw('LOWER(name) = ?', [strtolower($stateName)])->first();
+                    $stateId = $state?->id;
+                }
+
                 Product::create([
-                    'name' => $productName,
+                    'name' => $name,
+                    'sku' => $sku,
                     'p_category_id' => $pCat->id,
                     'mrp' => $mrp,
-                    'price' => $price,
+                    'pack_size' => $packSize ?: null,
+                    'volume' => $volume ?: null,
+                    'state_id' => $stateId,
                     'edd' => $edd ?: null,
                     'total_stock' => $totalStock ?: 0,
                     'is_active' => true,
-                    'catalogue_pdf' => null
                 ]);
 
                 $imported++;

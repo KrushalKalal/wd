@@ -11,6 +11,7 @@ class QuestionAnswer extends Model
         'question_id',
         'answer_text',
         'answer_image',
+        'count',
         'remark',
         'admin_status',
         'admin_remark',
@@ -20,6 +21,8 @@ class QuestionAnswer extends Model
 
     protected $casts = [
         'reviewed_at' => 'datetime',
+        'count' => 'integer',
+
     ];
 
     public function visit()

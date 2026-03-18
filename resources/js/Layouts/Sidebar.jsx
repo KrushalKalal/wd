@@ -115,17 +115,6 @@ export default function Sidebar({ isOpen = true }) {
                         icon: "fa fa-boxes-stacked",
                         href: route("store-management.index"),
                     },
-
-                    // {
-                    //     label: "Stock Approval",
-                    //     icon: "fa fa-boxes-stacked",
-                    //     href: route("stock-approvals.index"),
-                    // },
-                    // {
-                    //     label: "Store Visit",
-                    //     icon: "fa fa-boxes-stacked",
-                    //     href: route("store-visits.index"),
-                    // },
                 ],
             },
             {
@@ -172,13 +161,9 @@ export default function Sidebar({ isOpen = true }) {
                     },
                 ],
             },
-            {
-                label: "Reports",
-                icon: "fa fa-file",
-                href: "/",
-                type: "single",
-            },
+            { label: "Reports", icon: "fa fa-file", href: "/", type: "single" },
         ],
+
         "Country Head": [
             {
                 label: "Dashboard",
@@ -277,17 +262,6 @@ export default function Sidebar({ isOpen = true }) {
                         icon: "fa fa-boxes-stacked",
                         href: route("store-management.index"),
                     },
-
-                    // {
-                    //     label: "Stock Approval",
-                    //     icon: "fa fa-boxes-stacked",
-                    //     href: route("stock-approvals.index"),
-                    // },
-                    // {
-                    //     label: "Store Visit",
-                    //     icon: "fa fa-boxes-stacked",
-                    //     href: route("store-visits.index"),
-                    // },
                 ],
             },
             {
@@ -334,12 +308,7 @@ export default function Sidebar({ isOpen = true }) {
                     },
                 ],
             },
-            {
-                label: "Reports",
-                icon: "fa fa-file",
-                href: "/",
-                type: "single",
-            },
+            { label: "Reports", icon: "fa fa-file", href: "/", type: "single" },
         ],
 
         "Zonal Head": [
@@ -354,11 +323,6 @@ export default function Sidebar({ isOpen = true }) {
                 icon: "fa fa-map-marker-alt",
                 type: "category",
                 items: [
-                    {
-                        label: "Zone Master",
-                        icon: "fa fa-globe",
-                        href: route("zone-master.index"),
-                    },
                     {
                         label: "State Master",
                         icon: "fa fa-flag",
@@ -381,11 +345,6 @@ export default function Sidebar({ isOpen = true }) {
                 icon: "fa fa-building",
                 type: "category",
                 items: [
-                    // {
-                    //     label: "Company Master",
-                    //     icon: "fa fa-building",
-                    //     href: route("company-master.index"),
-                    // },
                     {
                         label: "Branch Master",
                         icon: "fa fa-code-branch",
@@ -403,28 +362,6 @@ export default function Sidebar({ isOpen = true }) {
                     },
                 ],
             },
-            // {
-            //     label: "Employee Masters",
-            //     icon: "fa fa-users",
-            //     type: "category",
-            //     items: [
-            //         {
-            //             label: "Department Master",
-            //             icon: "fa fa-building",
-            //             href: "/department-masters",
-            //         },
-            //         {
-            //             label: "Employee Master",
-            //             icon: "fa fa-user",
-            //             href: route("employee-master.index"),
-            //         },
-            //         {
-            //             label: "Employee Target",
-            //             icon: "fa fa-bullseye",
-            //             href: route("employee-target.index"),
-            //         },
-            //     ],
-            // },
             {
                 label: "Store & Products",
                 icon: "fa fa-store",
@@ -450,46 +387,8 @@ export default function Sidebar({ isOpen = true }) {
                         icon: "fa fa-boxes-stacked",
                         href: route("store-management.index"),
                     },
-
-                    // {
-                    //     label: "Stock Approval",
-                    //     icon: "fa fa-boxes-stacked",
-                    //     href: route("stock-approvals.index"),
-                    // },
-                    // {
-                    //     label: "Store Visit",
-                    //     icon: "fa fa-boxes-stacked",
-                    //     href: route("store-visits.index"),
-                    // },
                 ],
             },
-            // {
-            //     label: "Category Masters",
-            //     icon: "fa fa-tags",
-            //     type: "category",
-            //     items: [
-            //         {
-            //             label: "Product Category",
-            //             icon: "fa fa-cubes",
-            //             href: "/product-category-masters",
-            //         },
-            //         {
-            //             label: "Category One",
-            //             icon: "fa fa-tags",
-            //             href: "/category-one-masters",
-            //         },
-            //         {
-            //             label: "Category Two",
-            //             icon: "fa fa-tags",
-            //             href: "/category-two-masters",
-            //         },
-            //         {
-            //             label: "Category Three",
-            //             icon: "fa fa-tags",
-            //             href: "/category-three-masters",
-            //         },
-            //     ],
-            // },
             {
                 label: "Other Masters",
                 icon: "fa fa-cogs",
@@ -507,12 +406,7 @@ export default function Sidebar({ isOpen = true }) {
                     },
                 ],
             },
-            {
-                label: "Reports",
-                icon: "fa fa-file",
-                href: "/",
-                type: "single",
-            },
+            { label: "Reports", icon: "fa fa-file", href: "/", type: "single" },
         ],
 
         "State Head": [
@@ -539,17 +433,11 @@ export default function Sidebar({ isOpen = true }) {
                     },
                 ],
             },
-
             {
                 label: "Branch & Employee",
                 icon: "fa fa-building",
                 type: "category",
                 items: [
-                    // {
-                    //     label: "Company Master",
-                    //     icon: "fa fa-building",
-                    //     href: route("company-master.index"),
-                    // },
                     {
                         label: "Branch Master",
                         icon: "fa fa-code-branch",
@@ -567,29 +455,6 @@ export default function Sidebar({ isOpen = true }) {
                     },
                 ],
             },
-            // {
-            //     label: "Employee Masters",
-            //     icon: "fa fa-users",
-            //     type: "category",
-            //     items: [
-            //         {
-            //             label: "Department Master",
-            //             icon: "fa fa-building",
-            //             href: "/department-masters",
-            //         },
-            //         {
-            //             label: "Employee Master",
-            //             icon: "fa fa-user",
-            //             href: route("employee-master.index"),
-            //         },
-            //         {
-            //             label: "Employee Target",
-            //             icon: "fa fa-bullseye",
-            //             href: route("employee-target.index"),
-            //         },
-            //     ],
-            // },
-
             {
                 label: "Store & Products",
                 icon: "fa fa-store",
@@ -615,42 +480,131 @@ export default function Sidebar({ isOpen = true }) {
                         icon: "fa fa-boxes-stacked",
                         href: route("store-management.index"),
                     },
-
-                    // {
-                    //     label: "Stock Approval",
-                    //     icon: "fa fa-boxes-stacked",
-                    //     href: route("stock-approvals.index"),
-                    // },
-                    // {
-                    //     label: "Store Visit",
-                    //     icon: "fa fa-boxes-stacked",
-                    //     href: route("store-visits.index"),
-                    // },
+                ],
+            },
+            {
+                label: "Other Masters",
+                icon: "fa fa-cogs",
+                type: "category",
+                items: [
                     {
-                        label: "Other Masters",
-                        icon: "fa fa-cogs",
-                        type: "category",
-                        items: [
-                            {
-                                label: "Offer Master",
-                                icon: "fa fa-gift",
-                                href: route("offer-master.index"),
-                            },
-                            {
-                                label: "Question Master",
-                                icon: "fa fa-question-circle",
-                                href: route("question-master.index"),
-                            },
-                        ],
+                        label: "Offer Master",
+                        icon: "fa fa-gift",
+                        href: route("offer-master.index"),
                     },
                     {
-                        label: "Reports",
-                        icon: "fa fa-file",
-                        href: "/",
-                        type: "single",
+                        label: "Question Master",
+                        icon: "fa fa-question-circle",
+                        href: route("question-master.index"),
                     },
                 ],
             },
+            { label: "Reports", icon: "fa fa-file", href: "/", type: "single" },
+        ],
+
+        "City Head": [
+            {
+                label: "Dashboard",
+                icon: "fa fa-home",
+                href: "/dashboard",
+                type: "single",
+            },
+            {
+                label: "Location Masters",
+                icon: "fa fa-map-marker-alt",
+                type: "category",
+                items: [
+                    {
+                        label: "Area Master",
+                        icon: "fa fa-map-pin",
+                        href: route("area-master.index"),
+                    },
+                ],
+            },
+            {
+                label: "Employee Masters",
+                icon: "fa fa-users",
+                type: "category",
+                items: [
+                    {
+                        label: "Employee Master",
+                        icon: "fa fa-user",
+                        href: route("employee-master.index"),
+                    },
+                    {
+                        label: "Employee Target",
+                        icon: "fa fa-bullseye",
+                        href: route("employee-target.index"),
+                    },
+                ],
+            },
+            {
+                label: "Store & Products",
+                icon: "fa fa-store",
+                type: "category",
+                items: [
+                    {
+                        label: "Store Master",
+                        icon: "fa fa-store",
+                        href: route("store-master.index"),
+                    },
+                    {
+                        label: "Store Products",
+                        icon: "fa fa-boxes-stacked",
+                        href: route("store-product.index"),
+                    },
+                    {
+                        label: "Store Management",
+                        icon: "fa fa-boxes-stacked",
+                        href: route("store-management.index"),
+                    },
+                ],
+            },
+            { label: "Reports", icon: "fa fa-file", href: "/", type: "single" },
+        ],
+
+        "On/Off Trade Head": [
+            {
+                label: "Dashboard",
+                icon: "fa fa-home",
+                href: "/dashboard",
+                type: "single",
+            },
+            {
+                label: "Employee Masters",
+                icon: "fa fa-users",
+                type: "category",
+                items: [
+                    {
+                        label: "Employee Master",
+                        icon: "fa fa-user",
+                        href: route("employee-master.index"),
+                    },
+                    {
+                        label: "Employee Target",
+                        icon: "fa fa-bullseye",
+                        href: route("employee-target.index"),
+                    },
+                ],
+            },
+            {
+                label: "Store & Products",
+                icon: "fa fa-store",
+                type: "category",
+                items: [
+                    {
+                        label: "Store Products",
+                        icon: "fa fa-boxes-stacked",
+                        href: route("store-product.index"),
+                    },
+                    {
+                        label: "Store Management",
+                        icon: "fa fa-boxes-stacked",
+                        href: route("store-management.index"),
+                    },
+                ],
+            },
+            { label: "Reports", icon: "fa fa-file", href: "/", type: "single" },
         ],
 
         "Sales Employee": [

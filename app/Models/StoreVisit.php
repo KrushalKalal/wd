@@ -58,5 +58,10 @@ class StoreVisit extends Model
     {
         return $query->whereDate('visit_date', today());
     }
+
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'visit_id');
+    }
 }
 

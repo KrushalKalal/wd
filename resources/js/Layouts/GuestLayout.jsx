@@ -119,7 +119,7 @@ export default function GuestLayout({ children, title }) {
 
     return (
         <div className="guest-wrapper">
-            <Head title={title || "WOW Recycle"} />
+            <Head title={title || "Wild Life Beveraged"} />
             <div className="guest-outer">
                 <div className="guest-inner">{children}</div>
             </div>

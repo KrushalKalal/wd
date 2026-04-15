@@ -453,6 +453,9 @@ class RoleAccessHelper
         if ($user->hasRole('State Head') && $employee?->state_id) {
             return [$employee->state_id];
         }
+        if ($user->hasRole(['City Head', 'On/Off Trade Head']) && $employee?->state_id) {
+            return [$employee->state_id];
+        }
 
         return [];
     }

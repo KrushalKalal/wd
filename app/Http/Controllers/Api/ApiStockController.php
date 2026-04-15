@@ -48,7 +48,20 @@ class ApiStockController extends Controller
         $visit = StoreVisit::where('id', $request->visit_id)
             ->where('employee_id', $employee->id)
             ->where('store_id', $request->store_id)
+            ->with('store')
             ->firstOrFail();
+
+        $isFirstVisit = !StoreProduct::where('store_id', $request->store_id)->exists();
+        $isNewStore = $visit->store->created_by_employee_id !== null;
+
+        if ($isFirstVisit && !$isNewStore) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Please submit the available stock count before placing an order or return.',
+                'error_code' => 'STOCK_COUNT_REQUIRED',
+            ], 422);
+        }
+        // ─────────────────────────────────────────────────────────────────
 
         try {
             DB::beginTransaction();
@@ -74,7 +87,6 @@ class ApiStockController extends Controller
             ], 500);
         }
     }
-
     /**
      * Handle TYPE: ADD
      * Creates Order + OrderItems + StockTransactions + Invoice

@@ -592,6 +592,36 @@ export default function Dashboard() {
                             </div>
                         </div>
                     )}
+
+                    {statistics.flagged_stores > 0 && (
+                        <div className="col-md-3">
+                            <Link
+                                href="/flagged-stores"
+                                style={{ textDecoration: "none" }}
+                            >
+                                <div
+                                    className="card border-0 shadow-sm h-100"
+                                    style={{ backgroundColor: "#dc3545" }}
+                                >
+                                    <div className="card-body">
+                                        <div className="d-flex align-items-center">
+                                            <div className="flex-grow-1">
+                                                <p className="mb-1 text-white">
+                                                    Flagged Stores
+                                                </p>
+                                                <h3 className="mb-0 fw-bold text-white">
+                                                    {statistics.flagged_stores}
+                                                </h3>
+                                            </div>
+                                            <div className="ms-3">
+                                                <i className="fas fa-flag fa-2x text-white"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </Link>
+                        </div>
+                    )} 
                 </div>
 
                 {/* RECENT ACTIVITIES & HIERARCHY */}
@@ -603,9 +633,7 @@ export default function Dashboard() {
                                 <div className="card border-0 shadow-sm">
                                     <div
                                         className="card-header border-0"
-                                        style={{
-                                            backgroundColor: "#111111",
-                                        }}
+                                        style={{ backgroundColor: "#111111" }}
                                     >
                                         <h5 className="mb-0 text-white">
                                             <i className="fas fa-history me-2"></i>
@@ -620,14 +648,47 @@ export default function Dashboard() {
                                                         key={index}
                                                         href={`/store-management/${visit.store_id}`}
                                                         className="list-group-item list-group-item-action"
+                                                        style={{
+                                                            borderLeft:
+                                                                visit.breakage_count >
+                                                                0
+                                                                    ? "4px solid #dc3545"
+                                                                    : "4px solid transparent",
+                                                        }}
                                                     >
                                                         <div className="d-flex justify-content-between align-items-start">
                                                             <div className="flex-grow-1">
-                                                                <h6 className="mb-1 text-dark fw-semibold">
-                                                                    {
-                                                                        visit.store_name
-                                                                    }
-                                                                </h6>
+                                                                <div className="d-flex align-items-center gap-2 mb-1">
+                                                                    <h6 className="mb-0 text-dark fw-semibold">
+                                                                        {
+                                                                            visit.store_name
+                                                                        }
+                                                                    </h6>
+                                                                    {/* BREAKAGE BADGE */}
+                                                                    {visit.breakage_count >
+                                                                        0 && (
+                                                                        <span
+                                                                            className="badge d-inline-flex align-items-center gap-1"
+                                                                            style={{
+                                                                                backgroundColor:
+                                                                                    "#dc3545",
+                                                                                color: "white",
+                                                                                fontSize: 10,
+                                                                            }}
+                                                                        >
+                                                                            <i
+                                                                                className="fas fa-exclamation-triangle"
+                                                                                style={{
+                                                                                    fontSize: 9,
+                                                                                }}
+                                                                            ></i>
+                                                                            Breakage:{" "}
+                                                                            {
+                                                                                visit.breakage_count
+                                                                            }
+                                                                        </span>
+                                                                    )}
+                                                                </div>
                                                                 {visit.employee_name && (
                                                                     <p className="mb-1 text-muted small">
                                                                         <i className="fas fa-user me-1"></i>
@@ -672,6 +733,109 @@ export default function Dashboard() {
                                                 }}
                                             >
                                                 View All Store Management
+                                                <i className="fas fa-arrow-right ms-2"></i>
+                                            </Link>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                    {recentActivities?.flagged_stores &&
+                        recentActivities.flagged_stores.length > 0 && (
+                            <div className="col-md-6">
+                                <div className="card border-0 shadow-sm">
+                                    {/* Red header to make it stand out */}
+                                    <div
+                                        className="card-header border-0 d-flex align-items-center justify-content-between"
+                                        style={{ backgroundColor: "#dc3545" }}
+                                    >
+                                        <h5 className="mb-0 text-white d-flex align-items-center gap-2">
+                                            <i className="fas fa-flag"></i>
+                                            Flagged Stores
+                                        </h5>
+                                        <span className="badge bg-white text-danger fw-bold">
+                                            {statistics.flagged_stores ||
+                                                recentActivities.flagged_stores
+                                                    .length}
+                                        </span>
+                                    </div>
+                                    <div className="card-body p-0">
+                                        <div className="list-group list-group-flush">
+                                            {recentActivities.flagged_stores.map(
+                                                (flag, index) => (
+                                                    <Link
+                                                        key={index}
+                                                        href={`/store-management/${flag.store_id}`}
+                                                        className="list-group-item list-group-item-action"
+                                                        style={{
+                                                            borderLeft:
+                                                                "4px solid #dc3545",
+                                                        }}
+                                                    >
+                                                        <div className="d-flex justify-content-between align-items-start">
+                                                            <div className="flex-grow-1">
+                                                                <div className="d-flex align-items-center gap-2 mb-1">
+                                                                    <i
+                                                                        className="fas fa-flag text-danger"
+                                                                        style={{
+                                                                            fontSize: 11,
+                                                                        }}
+                                                                    ></i>
+                                                                    <h6 className="mb-0 text-dark fw-semibold">
+                                                                        {
+                                                                            flag.store_name
+                                                                        }
+                                                                    </h6>
+                                                                </div>
+                                                                <p className="mb-1 text-muted small">
+                                                                    <i className="fas fa-user me-1"></i>
+                                                                    {
+                                                                        flag.employee
+                                                                    }
+                                                                </p>
+                                                                {flag.flag_note && (
+                                                                    <p className="mb-1 text-dark small fst-italic">
+                                                                        "
+                                                                        {
+                                                                            flag.flag_note
+                                                                        }
+                                                                        "
+                                                                    </p>
+                                                                )}
+                                                                <p className="mb-0 text-muted small">
+                                                                    <i className="fas fa-map-marker-alt me-1"></i>
+                                                                    {flag.city},{" "}
+                                                                    {flag.state}
+                                                                </p>
+                                                            </div>
+                                                            <div className="text-end ms-2">
+                                                                <small className="text-muted d-block">
+                                                                    {new Date(
+                                                                        flag.flagged_at,
+                                                                    ).toLocaleDateString(
+                                                                        "en-IN",
+                                                                        {
+                                                                            day: "numeric",
+                                                                            month: "short",
+                                                                        },
+                                                                    )}
+                                                                </small>
+                                                                <span className="badge bg-danger mt-1">
+                                                                    Flagged
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </Link>
+                                                ),
+                                            )}
+                                        </div>
+                                        <div className="card-footer bg-light border-0 text-center">
+                                            <Link
+                                                href="/flagged-stores"
+                                                className="btn btn-sm btn-danger"
+                                            >
+                                                View All Flagged Stores
                                                 <i className="fas fa-arrow-right ms-2"></i>
                                             </Link>
                                         </div>

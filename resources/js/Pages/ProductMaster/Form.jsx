@@ -21,7 +21,6 @@ export default function Form({
     }));
     const stateOptions = states.map((s) => ({ value: s.id, label: s.name }));
 
-    // Pre-select state based on role lock
     const defaultStateId = product?.state_id || userLocation.state_id || null;
 
     const { data, setData, post, processing } = useForm({
@@ -35,13 +34,12 @@ export default function Form({
         edd: product?.edd || "",
         total_stock: product?.total_stock || "",
         image: null,
-        catalogue_pdf: null,
+        // catalogue_pdf: null,
     });
 
     const [alert, setAlert] = useState({ show: false, type: "", message: "" });
     const [errors, setErrors] = useState({});
 
-    // Is state locked for this role
     const stateIsLocked = locationLocks.state_id === true;
 
     useEffect(() => {
@@ -105,7 +103,7 @@ export default function Form({
                                 </div>
 
                                 {/* State */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             State
@@ -170,7 +168,7 @@ export default function Form({
                                 </div>
 
                                 {/* Product Category */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Product Category{" "}
@@ -220,7 +218,7 @@ export default function Form({
                                 </div>
 
                                 {/* SKU */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             SKU{" "}
@@ -246,7 +244,7 @@ export default function Form({
                                 </div>
 
                                 {/* Product Name */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Product Name{" "}
@@ -401,7 +399,7 @@ export default function Form({
                                 </div>
 
                                 {/* Product Image */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Product Image
@@ -444,49 +442,36 @@ export default function Form({
                                     </div>
                                 </div>
 
-                                {/* Catalogue PDF */}
-                                <div className="col-md-6">
+                                {/* Catalogue PDF — commented out */}
+                                {/* <div className="col-md-4">
                                     <div className="mb-3">
-                                        <label className="form-label fw-semibold">
-                                            Product Catalogue PDF
-                                        </label>
+                                        <label className="form-label fw-semibold">Product Catalogue PDF</label>
                                         <input
                                             type="file"
                                             className="form-control"
                                             accept=".pdf"
-                                            onChange={(e) =>
-                                                setData(
-                                                    "catalogue_pdf",
-                                                    e.target.files[0],
-                                                )
-                                            }
+                                            onChange={(e) => setData("catalogue_pdf", e.target.files[0])}
                                         />
-                                        <small className="text-muted">
-                                            PDF only — max 10MB
-                                        </small>
+                                        <small className="text-muted">PDF only — max 10MB</small>
                                         {isEdit && product?.catalogue_pdf && (
                                             <div className="mt-2">
-                                                <a
+                                                
                                                     href={`/storage/${product.catalogue_pdf}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="btn btn-sm btn-outline-dark"
                                                 >
-                                                    <i className="fas fa-file-pdf me-1"></i>
-                                                    View Current PDF
+                                                    <i className="fas fa-file-pdf me-1"></i>View Current PDF
                                                 </a>
                                             </div>
                                         )}
                                         {errors.catalogue_pdf && (
-                                            <div
-                                                className="text-danger mt-1"
-                                                style={{ fontSize: "0.875em" }}
-                                            >
+                                            <div className="text-danger mt-1" style={{ fontSize: "0.875em" }}>
                                                 {errors.catalogue_pdf}
                                             </div>
                                         )}
                                     </div>
-                                </div>
+                                </div> */}
                             </div>
 
                             <div className="d-flex gap-2 justify-content-end pt-3 mt-3 border-top">
@@ -497,8 +482,7 @@ export default function Form({
                                         router.visit("/product-masters")
                                     }
                                 >
-                                    <i className="fas fa-times me-2"></i>
-                                    Cancel
+                                    <i className="fas fa-times me-2"></i>Cancel
                                 </button>
                                 <button
                                     type="submit"

@@ -76,12 +76,21 @@ class StoreManagementController extends Controller
 
             if ($latestVisit) {
                 $surveyAnswers = $latestVisit->questionAnswers;
+
+                // Find breakage answer: question with is_count=true and text containing 'breakage'
+                $breakageAnswer = $surveyAnswers->first(function ($a) {
+                    return $a->question &&
+                        $a->question->is_count &&
+                        stripos($a->question->question_text, 'breakage') !== false;
+                });
+
                 $store->survey_stats = [
                     'total' => $surveyAnswers->count(),
                     'pending' => $surveyAnswers->where('admin_status', 'pending')->count(),
                     'approved' => $surveyAnswers->where('admin_status', 'approved')->count(),
                     'rejected' => $surveyAnswers->where('admin_status', 'rejected')->count(),
                     'needs_review' => $surveyAnswers->where('admin_status', 'needs_review')->count(),
+                    'breakage_count' => $breakageAnswer?->count ?? null,  // null = no breakage question answered
                 ];
 
                 $stockTransactions = $latestVisit->stockTransactions;
@@ -109,6 +118,7 @@ class StoreManagementController extends Controller
                     'approved' => 0,
                     'rejected' => 0,
                     'needs_review' => 0,
+                    'breakage_count' => null,
                 ];
                 $store->stock_stats = [
                     'total' => 0,

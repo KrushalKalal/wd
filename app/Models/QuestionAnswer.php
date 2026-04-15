@@ -16,14 +16,30 @@ class QuestionAnswer extends Model
         'admin_status',
         'admin_remark',
         'reviewed_by',
-        'reviewed_at'
+        'reviewed_at',
     ];
 
     protected $casts = [
         'reviewed_at' => 'datetime',
         'count' => 'integer',
-
+        'is_breakage' => 'boolean',    // appended virtual attribute
     ];
+
+    protected $appends = ['is_breakage'];
+
+    /**
+     * Virtual attribute — true when this answer is for the breakage question.
+     * Delegates to Question::is_breakage so the logic lives in one place.
+     * Requires the 'question' relation to be eager-loaded; returns false safely if not.
+     */
+    public function getIsBreakageAttribute(): bool
+    {
+        return $this->relationLoaded('question')
+            ? (bool) ($this->question?->is_breakage)
+            : false;
+    }
+
+    // ── Relations ────────────────────────────────────────────────────────────
 
     public function visit()
     {
@@ -40,7 +56,8 @@ class QuestionAnswer extends Model
         return $this->belongsTo(User::class, 'reviewed_by');
     }
 
-    // Scopes
+    // ── Scopes ───────────────────────────────────────────────────────────────
+
     public function scopePending($query)
     {
         return $query->where('admin_status', 'pending');

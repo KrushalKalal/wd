@@ -88,7 +88,7 @@ class ApiStoreMasterController extends Controller
                 'category_two_id' => $request->category_two_id,
                 'category_three_id' => $request->category_three_id,
                 'country' => 'India',
-                'is_active' => true,
+                'is_active' => false,
                 'manual_stock_entry' => true,
                 'created_by_employee_id' => $employee->id,
             ]);

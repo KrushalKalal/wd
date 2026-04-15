@@ -4,42 +4,36 @@ import axios from "axios";
 import Select from "react-select";
 
 export default function AddressSection({
-    // Current values
     address = "",
     areaId = null,
     pinCode = "",
-
-    // Locked location from logged in user
     userLocation = {},
     locationLocks = {},
-
-    // Callback when any value changes
     onChange,
-
-    // Errors
     errors = {},
-
-    // Simple mode for billing/shipping — no zone/state/city/area
     simple = false,
     label = "Address",
+    // Branch restriction — if set, address state must match
+    restrictStateName = null,
 }) {
     const [zones, setZones] = useState([]);
     const [selectedZone, setSelectedZone] = useState(null);
     const [resolvedState, setResolvedState] = useState(null);
     const [resolvedCity, setResolvedCity] = useState(null);
-
     const [resolvedPinCode, setResolvedPinCode] = useState(pinCode || "");
     const [locationError, setLocationError] = useState(null);
     const [resolving, setResolving] = useState(false);
     const [needsZone, setNeedsZone] = useState(false);
     const selectedZoneRef = useRef(null);
     const [resolvedArea, setResolvedArea] = useState(null);
+    const userLocationRef = useRef(userLocation);
+    useEffect(() => {
+        userLocationRef.current = userLocation;
+    }, [userLocation]);
 
     // Load zones for Master Admin / Country Head
     useEffect(() => {
         if (simple) return;
-
-        // If zone is not locked — load zones dropdown
         if (!locationLocks.zone_id) {
             axios.get("/api/zones").then((res) => {
                 setZones(res.data);
@@ -47,12 +41,26 @@ export default function AddressSection({
         }
     }, [locationLocks.zone_id, simple]);
 
-    // If city is locked — pre-load areas
+    // Auto-select zone in dropdown when branch fills userLocation.zone_id
     useEffect(() => {
         if (simple) return;
+        if (locationLocks.zone_id) return;
+        if (userLocation.zone_id && userLocation.zone_name) {
+            const option = {
+                value: userLocation.zone_id,
+                label: userLocation.zone_name,
+            };
+            setSelectedZone(option);
+            selectedZoneRef.current = option;
+            setNeedsZone(false);
+            setLocationError(null);
+        }
+    }, [userLocation.zone_id, userLocation.zone_name]);
 
+    // If city is locked — pre-fill state/city display
+    useEffect(() => {
+        if (simple) return;
         if (locationLocks.city_id && userLocation.city_id) {
-            loadAreas(userLocation.city_id);
             setResolvedState({
                 name: userLocation.state_name,
                 id: userLocation.state_id,
@@ -67,7 +75,6 @@ export default function AddressSection({
     // If state is locked — set resolved state display
     useEffect(() => {
         if (simple) return;
-
         if (locationLocks.state_id && userLocation.state_id) {
             setResolvedState({
                 name: userLocation.state_name,
@@ -78,14 +85,12 @@ export default function AddressSection({
 
     const handleZoneChange = (option) => {
         setSelectedZone(option);
-        selectedZoneRef.current = option; // ADD THIS LINE
+        selectedZoneRef.current = option;
         setNeedsZone(false);
         setLocationError(null);
         setResolvedState(null);
         setResolvedCity(null);
-        setSelectedArea(null);
-        setAreas([]);
-
+        setResolvedArea(null);
         onChange({
             zone_id: option?.value || null,
             state_id: null,
@@ -95,15 +100,15 @@ export default function AddressSection({
     };
 
     const handleAddressSelect = async (result) => {
-        console.log("AddressSection received:", result);
-        console.log("Zone selected:", selectedZone);
-        console.log("Location locks:", locationLocks);
-        console.log("User location:", userLocation);
+        console.log("result.state:", result.state);
+        console.log(
+            "userLocationRef.state_name:",
+            userLocationRef.current.state_name,
+        );
         setLocationError(null);
         setResolvedPinCode(result.pin_code || "");
 
         if (simple) {
-            // Billing/shipping — just store address + coords
             onChange({
                 address: result.full_address,
                 latitude: result.latitude,
@@ -112,49 +117,48 @@ export default function AddressSection({
             return;
         }
 
-        // Determine zone_id to use
+        // Determine zone_id
         let zoneId = null;
-
         if (locationLocks.zone_id) {
-            // Zone is locked — use from logged in user profile
-            zoneId = userLocation.zone_id;
+            zoneId = userLocationRef.current.zone_id;
         } else {
-            // Zone must be selected by user
-            if (!selectedZoneRef.current?.value) {
+            zoneId =
+                selectedZoneRef.current?.value ||
+                userLocationRef.current.zone_id ||
+                null;
+            if (!zoneId) {
                 setNeedsZone(true);
                 setLocationError(
                     "Please select a zone first before searching address.",
                 );
                 return;
             }
-            zoneId = selectedZoneRef.current.value;
         }
 
-        // Validate location restriction for restricted roles
-        if (locationLocks.state_id && userLocation.state_name) {
+        // State restriction — branch selected or role locked
+        if (userLocationRef.current.state_name) {
             if (
                 result.state.toLowerCase() !==
-                userLocation.state_name.toLowerCase()
+                userLocationRef.current.state_name.toLowerCase()
             ) {
                 setLocationError(
-                    `This address is in ${result.state}. You can only add addresses within ${userLocation.state_name}.`,
+                    `This address is in ${result.state}. Please search address within ${userLocationRef.current.state_name}.`,
                 );
-                onChange({ address: result.full_address });
                 return;
             }
         }
-        if (locationLocks.city_id && userLocation.city_id) {
+
+        if (locationLocks.city_id && userLocationRef.current.city_id) {
             setResolvedState({
-                name: userLocation.state_name,
-                id: userLocation.state_id,
+                name: userLocationRef.current.state_name,
+                id: userLocationRef.current.state_id,
             });
             setResolvedCity({
-                name: userLocation.city_name,
-                id: userLocation.city_id,
+                name: userLocationRef.current.city_name,
+                id: userLocationRef.current.city_id,
             });
         }
 
-        // Resolve state and city from backend
         setResolving(true);
         try {
             const res = await axios.get("/api/resolve-location", {
@@ -173,7 +177,6 @@ export default function AddressSection({
             }
 
             const resolved = res.data;
-
             setResolvedState({
                 name: resolved.state_name,
                 id: resolved.state_id,
@@ -222,11 +225,10 @@ export default function AddressSection({
 
     return (
         <div className="col-12">
-            {/* Zone — only for non-simple mode */}
+            {/* Zone */}
             {!simple && (
                 <div className="mb-3">
                     {locationLocks.zone_id ? (
-                        // Locked — show as read only
                         <div className="row g-2 mb-2">
                             <div className="col-md-3">
                                 <label className="form-label small text-muted fw-semibold">
@@ -245,7 +247,6 @@ export default function AddressSection({
                             </div>
                         </div>
                     ) : (
-                        // Open — show zone dropdown
                         <div className="row g-2 mb-2">
                             <div className="col-md-4">
                                 <label className="form-label fw-semibold">
@@ -322,10 +323,9 @@ export default function AddressSection({
                 )}
             </div>
 
-            {/* Resolved fields — state, city, area, pincode */}
+            {/* Resolved fields */}
             {!simple && (resolvedState || locationLocks.state_id) && (
                 <div className="row g-2 mb-3">
-                    {/* State — read only always */}
                     <div className="col-md-3">
                         <label className="form-label small text-muted fw-semibold">
                             State
@@ -347,8 +347,6 @@ export default function AddressSection({
                             readOnly
                         />
                     </div>
-
-                    {/* City — read only always */}
                     <div className="col-md-3">
                         <label className="form-label small text-muted fw-semibold">
                             City
@@ -370,8 +368,6 @@ export default function AddressSection({
                             readOnly
                         />
                     </div>
-
-                    {/* Area — read only */}
                     <div className="col-md-3">
                         <label className="form-label small text-muted fw-semibold">
                             Area
@@ -383,8 +379,6 @@ export default function AddressSection({
                             readOnly
                         />
                     </div>
-
-                    {/* Pincode — read only */}
                     <div className="col-md-3">
                         <label className="form-label small text-muted fw-semibold">
                             Pin Code

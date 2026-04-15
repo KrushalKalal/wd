@@ -21,7 +21,6 @@ class ProductMasterController extends Controller
     {
         $query = Product::with(['pCategory', 'state']);
 
-        // Apply role-based filter
         $query = RoleAccessHelper::applyRoleFilter($query);
 
         if ($request->has('search') && $request->search) {
@@ -47,7 +46,6 @@ class ProductMasterController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Role based states
         $stateIds = RoleAccessHelper::getAccessibleStateIds();
         $states = State::whereIn('id', $stateIds)
             ->where('is_active', true)
@@ -75,7 +73,6 @@ class ProductMasterController extends Controller
             ->orderBy('name')
             ->get();
 
-        // Role based states
         $stateIds = RoleAccessHelper::getAccessibleStateIds();
         $states = State::whereIn('id', $stateIds)
             ->where('is_active', true)
@@ -106,12 +103,13 @@ class ProductMasterController extends Controller
             'volume' => 'nullable|integer|min:0',
             'state_id' => 'nullable|exists:states,id',
             'total_stock' => 'nullable|integer|min:0',
-            'catalogue_pdf' => 'nullable|file|mimes:pdf|max:10240',
             'image' => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
+            // 'catalogue_pdf' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
         try {
-            $data = $request->except(['catalogue_pdf', 'image']);
+            $data = $request->except(['image']);
+            // $data = $request->except(['catalogue_pdf', 'image']);
             $data['is_active'] = true;
 
             // Handle image upload
@@ -122,13 +120,13 @@ class ProductMasterController extends Controller
                 $data['image'] = $file->storeAs($folder, $fileName, 'public');
             }
 
-            // Handle catalogue PDF upload
-            if ($request->hasFile('catalogue_pdf')) {
-                $folder = 'products/' . Str::slug($request->name);
-                $file = $request->file('catalogue_pdf');
-                $fileName = time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.pdf';
-                $data['catalogue_pdf'] = $file->storeAs($folder, $fileName, 'public');
-            }
+            // Handle catalogue PDF upload — commented out
+            // if ($request->hasFile('catalogue_pdf')) {
+            //     $folder = 'products/' . Str::slug($request->name);
+            //     $file = $request->file('catalogue_pdf');
+            //     $fileName = time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.pdf';
+            //     $data['catalogue_pdf'] = $file->storeAs($folder, $fileName, 'public');
+            // }
 
             Product::create($data);
 
@@ -182,13 +180,14 @@ class ProductMasterController extends Controller
             'volume' => 'nullable|integer|min:0',
             'state_id' => 'nullable|exists:states,id',
             'total_stock' => 'nullable|integer|min:0',
-            'catalogue_pdf' => 'nullable|file|mimes:pdf|max:10240',
             'image' => 'nullable|file|mimes:jpg,jpeg,png|max:2048',
+            // 'catalogue_pdf' => 'nullable|file|mimes:pdf|max:10240',
         ]);
 
         try {
             $product = Product::findOrFail($id);
-            $data = $request->except(['catalogue_pdf', 'image']);
+            $data = $request->except(['image']);
+            // $data = $request->except(['catalogue_pdf', 'image']);
 
             // Handle image upload
             if ($request->hasFile('image')) {
@@ -201,16 +200,16 @@ class ProductMasterController extends Controller
                 $data['image'] = $file->storeAs($folder, $fileName, 'public');
             }
 
-            // Handle catalogue PDF upload
-            if ($request->hasFile('catalogue_pdf')) {
-                if ($product->catalogue_pdf && Storage::disk('public')->exists($product->catalogue_pdf)) {
-                    Storage::disk('public')->delete($product->catalogue_pdf);
-                }
-                $folder = 'products/' . Str::slug($request->name);
-                $file = $request->file('catalogue_pdf');
-                $fileName = time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.pdf';
-                $data['catalogue_pdf'] = $file->storeAs($folder, $fileName, 'public');
-            }
+            // Handle catalogue PDF upload — commented out
+            // if ($request->hasFile('catalogue_pdf')) {
+            //     if ($product->catalogue_pdf && Storage::disk('public')->exists($product->catalogue_pdf)) {
+            //         Storage::disk('public')->delete($product->catalogue_pdf);
+            //     }
+            //     $folder = 'products/' . Str::slug($request->name);
+            //     $file = $request->file('catalogue_pdf');
+            //     $fileName = time() . '_' . Str::slug(pathinfo($file->getClientOriginalName(), PATHINFO_FILENAME)) . '.pdf';
+            //     $data['catalogue_pdf'] = $file->storeAs($folder, $fileName, 'public');
+            // }
 
             $product->update($data);
 
@@ -233,9 +232,10 @@ class ProductMasterController extends Controller
                 Storage::disk('public')->delete($product->image);
             }
 
-            if ($product->catalogue_pdf && Storage::disk('public')->exists($product->catalogue_pdf)) {
-                Storage::disk('public')->delete($product->catalogue_pdf);
-            }
+            // Catalogue PDF delete — commented out
+            // if ($product->catalogue_pdf && Storage::disk('public')->exists($product->catalogue_pdf)) {
+            //     Storage::disk('public')->delete($product->catalogue_pdf);
+            // }
 
             $folderPath = 'products/' . Str::slug($product->name);
             if (Storage::disk('public')->exists($folderPath)) {
@@ -317,7 +317,6 @@ class ProductMasterController extends Controller
             $stateList = '"' . implode(',', $states) . '"';
 
             for ($row = 2; $row <= 1000; $row++) {
-                // Product Category Column C
                 $validation = $sheet->getCell('C' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_STOP);
@@ -325,7 +324,6 @@ class ProductMasterController extends Controller
                 $validation->setShowDropDown(true);
                 $validation->setFormula1($pCatList);
 
-                // State Column G
                 $validation = $sheet->getCell('G' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
@@ -333,7 +331,6 @@ class ProductMasterController extends Controller
                 $validation->setShowDropDown(true);
                 $validation->setFormula1($stateList);
 
-                // Default stock
                 $sheet->setCellValue('I' . $row, 0);
             }
 
@@ -387,7 +384,6 @@ class ProductMasterController extends Controller
                     continue;
                 }
 
-                // Check SKU unique
                 $skuExists = Product::where('sku', $sku)->first();
                 if ($skuExists) {
                     $errors[] = "Row " . ($index + 2) . ": SKU '{$sku}' already exists";

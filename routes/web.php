@@ -23,6 +23,8 @@ use App\Http\Controllers\EmployeeTargetController;
 use App\Http\Controllers\StockApprovalController;
 use App\Http\Controllers\StoreVisitController;
 use App\Http\Controllers\StoreManagementController;
+use App\Http\Controllers\EmployeeManagementController;
+use App\Http\Controllers\StoreFlagController;
 use App\Helpers\LocationResolverHelper;
 use App\Helpers\RoleAccessHelper;
 use Illuminate\Foundation\Application;
@@ -84,6 +86,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     //     $areas = LocationResolverHelper::getAreasByCity((int) $cityId);
     //     return response()->json($areas);
     // })->name('api.areas-by-city');
+
+    Route::get('/api/branches/{id}/details', [BranchMasterController::class, 'getDetails'])
+        ->name('api.branch-details');
 
     // Get managers for a given role — used by employee form AJAX
     Route::get('/api/managers-by-role', function (\Illuminate\Http\Request $request) {
@@ -593,6 +598,23 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Bulk actions
     Route::post('/store-management/visits/{visitId}/bulk-approve', [StoreManagementController::class, 'bulkApproveVisit'])->name('store-management.visit.bulk-approve');
     Route::post('/store-management/surveys/{visitId}/bulk-approve', [StoreManagementController::class, 'bulkApproveSurveys'])->name('store-management.survey.bulk-approve');
+
+    // ============================================
+    // EMPLOYEE MANAGEMENT ROUTES
+    // ============================================
+    Route::get('/employee-management', [EmployeeManagementController::class, 'index'])
+        ->name('employee-management.index');
+
+    Route::get('/employee-management/{id}', [EmployeeManagementController::class, 'show'])
+        ->name('employee-management.show');
+
+    Route::post('/employee-management/plans/{planId}/remark', [EmployeeManagementController::class, 'addRemark'])
+        ->name('employee-management.remark');
+
+    // Flagged Stores
+    Route::get('/flagged-stores', [StoreFlagController::class, 'index'])->name('flagged-stores.index');
+    Route::post('/flagged-stores/{id}/resolve', [StoreFlagController::class, 'resolve'])->name('flagged-stores.resolve');
+    Route::get('/flagged-stores/count', [StoreFlagController::class, 'count'])->name('flagged-stores.count');
 });
 
 // })->middleware(['auth', 'verified'])->name('dashboard');

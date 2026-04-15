@@ -157,7 +157,7 @@ class StoreMasterController extends Controller
 
             $data = $request->all();
             $data['country'] = 'India';
-            $data['is_active'] = true;
+            $data['is_active'] = false;
             $data['manual_stock_entry'] = true;
 
             if ($locationLocks['zone_id'])
@@ -167,23 +167,23 @@ class StoreMasterController extends Controller
             if ($locationLocks['city_id'])
                 $data['city_id'] = $userLocation['city_id'];
 
-            // Billing details as JSON
-            if ($request->billing_address) {
-                $data['billing_details'] = [
-                    'address' => $request->billing_address,
-                    'latitude' => $request->billing_latitude,
-                    'longitude' => $request->billing_longitude,
-                ];
-            }
+            // Billing details as JSON — commented out
+            // if ($request->billing_address) {
+            //     $data['billing_details'] = [
+            //         'address' => $request->billing_address,
+            //         'latitude' => $request->billing_latitude,
+            //         'longitude' => $request->billing_longitude,
+            //     ];
+            // }
 
-            // Shipping details as JSON
-            if ($request->shipping_address) {
-                $data['shipping_details'] = [
-                    'address' => $request->shipping_address,
-                    'latitude' => $request->shipping_latitude,
-                    'longitude' => $request->shipping_longitude,
-                ];
-            }
+            // Shipping details as JSON — commented out
+            // if ($request->shipping_address) {
+            //     $data['shipping_details'] = [
+            //         'address' => $request->shipping_address,
+            //         'latitude' => $request->shipping_latitude,
+            //         'longitude' => $request->shipping_longitude,
+            //     ];
+            // }
 
             Store::create($data);
 
@@ -268,21 +268,23 @@ class StoreMasterController extends Controller
             $data['country'] = 'India';
             $data['manual_stock_entry'] = true;
 
-            if ($request->billing_address) {
-                $data['billing_details'] = [
-                    'address' => $request->billing_address,
-                    'latitude' => $request->billing_latitude,
-                    'longitude' => $request->billing_longitude,
-                ];
-            }
+            // Billing details as JSON — commented out
+            // if ($request->billing_address) {
+            //     $data['billing_details'] = [
+            //         'address' => $request->billing_address,
+            //         'latitude' => $request->billing_latitude,
+            //         'longitude' => $request->billing_longitude,
+            //     ];
+            // }
 
-            if ($request->shipping_address) {
-                $data['shipping_details'] = [
-                    'address' => $request->shipping_address,
-                    'latitude' => $request->shipping_latitude,
-                    'longitude' => $request->shipping_longitude,
-                ];
-            }
+            // Shipping details as JSON — commented out
+            // if ($request->shipping_address) {
+            //     $data['shipping_details'] = [
+            //         'address' => $request->shipping_address,
+            //         'latitude' => $request->shipping_latitude,
+            //         'longitude' => $request->shipping_longitude,
+            //     ];
+            // }
 
             $store->update($data);
 
@@ -421,7 +423,6 @@ class StoreMasterController extends Controller
             $dataSheet->setSheetState(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::SHEETSTATE_HIDDEN);
 
             for ($row = 2; $row <= 1000; $row++) {
-                // State dropdown Column D
                 $validation = $sheet->getCell('D' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_STOP);
@@ -429,7 +430,6 @@ class StoreMasterController extends Controller
                 $validation->setShowDropDown(true);
                 $validation->setFormula1($stateList);
 
-                // City dropdown Column E
                 $validation = $sheet->getCell('E' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
@@ -437,7 +437,6 @@ class StoreMasterController extends Controller
                 $validation->setShowDropDown(true);
                 $validation->setFormula1('INDIRECT("Cities_"&SUBSTITUTE(D' . $row . '," ","_"))');
 
-                // Area dropdown Column F
                 $validation = $sheet->getCell('F' . $row)->getDataValidation();
                 $validation->setType(DataValidation::TYPE_LIST);
                 $validation->setErrorStyle(DataValidation::STYLE_INFORMATION);
@@ -445,7 +444,6 @@ class StoreMasterController extends Controller
                 $validation->setShowDropDown(true);
                 $validation->setFormula1('INDIRECT("Areas_"&SUBSTITUTE(D' . $row . '," ","_")&"_"&SUBSTITUTE(E' . $row . '," ","_"))');
 
-                // Category One Column H
                 if (!empty($categoryOnes)) {
                     $validation = $sheet->getCell('H' . $row)->getDataValidation();
                     $validation->setType(DataValidation::TYPE_LIST);
@@ -455,7 +453,6 @@ class StoreMasterController extends Controller
                     $validation->setFormula1($cat1List);
                 }
 
-                // Category Two Column I
                 if (!empty($categoryTwos)) {
                     $validation = $sheet->getCell('I' . $row)->getDataValidation();
                     $validation->setType(DataValidation::TYPE_LIST);
@@ -465,7 +462,6 @@ class StoreMasterController extends Controller
                     $validation->setFormula1($cat2List);
                 }
 
-                // Category Three Column J
                 if (!empty($categoryThrees)) {
                     $validation = $sheet->getCell('J' . $row)->getDataValidation();
                     $validation->setType(DataValidation::TYPE_LIST);
@@ -587,7 +583,7 @@ class StoreMasterController extends Controller
                     'email' => $email,
                     'country' => 'India',
                     'manual_stock_entry' => true,
-                    'is_active' => true,
+                    'is_active' => false,
                 ]);
 
                 $imported++;
@@ -616,15 +612,18 @@ class StoreMasterController extends Controller
         return response()->json($areas);
     }
 
-    public function getAllActiveStores()
+    public function getAllActiveStores(Request $request)
     {
-        $query = Store::query()
-            ->select(['id', 'name', 'state_id', 'city_id', 'area_id', 'pin_code'])
-            ->with(['state:id,name', 'city:id,name', 'area:id,name'])
-            ->where('is_active', true);
+        $query = Store::where('is_active', true)->with(['city', 'state', 'area']);
 
-        $query = RoleAccessHelper::applyRoleFilter($query);
+        if ($request->filled('employee_id')) {
+            $employee = \App\Models\Employee::find($request->employee_id);
+            if ($employee && $employee->state_id) {
+                $query->where('state_id', $employee->state_id);
+            }
+        }
 
-        return response()->json($query->orderBy('name')->get());
+        return response()->json($query->select('id', 'name', 'city_id', 'state_id', 'area_id')
+            ->orderBy('name')->get());
     }
 }

@@ -1,5 +1,5 @@
 import { useForm, router, usePage } from "@inertiajs/react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import MainLayout from "@/Layouts/MainLayout";
 import AlertModal from "../AlertModel";
 import AddressSection from "@/Components/AddressSection";
@@ -23,10 +23,6 @@ export default function Form({
 
     const roleOptions = roles.map((r) => ({ value: r.id, label: r.name }));
     const branchOptions = branches.map((b) => ({ value: b.id, label: b.name }));
-    const departmentOptions = departments.map((d) => ({
-        value: d.id,
-        label: d.name,
-    }));
 
     const { data, setData, post, processing } = useForm({
         name: employee?.name || "",
@@ -59,6 +55,8 @@ export default function Form({
     const [errors, setErrors] = useState({});
     const [managerList, setManagerList] = useState(managers);
     const [loadingManagers, setLoadingManagers] = useState(false);
+    const [branchLocation, setBranchLocation] = useState(null);
+    const [branchStateName, setBranchStateName] = useState(null);
 
     useEffect(() => {
         if (flash?.success)
@@ -79,13 +77,45 @@ export default function Form({
         }
     }, [serverErrors]);
 
+    // Edit pe branch pre-fill — zone/state/city load karo
+    useEffect(() => {
+        if (isEdit && employee?.branch_id) {
+            axios
+                .get(`/api/branches/${employee.branch_id}/details`)
+                .then((res) => {
+                    const loc = res.data;
+                    setBranchLocation(loc);
+                    setBranchStateName(loc.state_name || null);
+                })
+                .catch(() => {});
+        }
+    }, []);
+
+    const handleBranchChange = async (option) => {
+        setData("branch_id", option?.value || null);
+        setBranchLocation(null);
+        setBranchStateName(null);
+        if (!option?.value) return;
+        try {
+            const res = await axios.get(
+                `/api/branches/${option.value}/details`,
+            );
+            const loc = res.data;
+            setBranchLocation(loc);
+            setBranchStateName(loc.state_name || null);
+            if (loc.zone_id) setData("zone_id", loc.zone_id);
+            if (loc.state_id) setData("state_id", loc.state_id);
+            if (loc.city_id) setData("city_id", loc.city_id);
+        } catch (err) {
+            console.error("Failed to fetch branch details:", err);
+        }
+    };
+
     const handleRoleChange = async (option) => {
         setData("role_id", option?.value || null);
         setData("reporting_to", null);
         setManagerList([]);
-
         if (!option?.value) return;
-
         setLoadingManagers(true);
         try {
             const res = await axios.get("/api/managers-by-role", {
@@ -98,9 +128,8 @@ export default function Form({
             setLoadingManagers(false);
         }
     };
-    const handleAddressChange = (values) => {
-        console.log("handleAddressChange received:", values);
 
+    const handleAddressChange = (values) => {
         if (values.address !== undefined) setData("address", values.address);
         if (values.state_id !== undefined) setData("state_id", values.state_id);
         if (values.city_id !== undefined) setData("city_id", values.city_id);
@@ -129,6 +158,20 @@ export default function Form({
         menuPortal: (base) => ({ ...base, zIndex: 9999 }),
     };
 
+    const effectiveUserLocation = useMemo(() => {
+        if (!branchLocation) return userLocation;
+        return {
+            zone_id: branchLocation.zone_id,
+            zone_name: branchLocation.zone_name,
+            state_id: branchLocation.state_id,
+            state_name: branchLocation.state_name,
+            city_id: branchLocation.city_id,
+            city_name: branchLocation.city_name,
+            area_id: branchLocation.area_id,
+            area_name: branchLocation.area_name,
+        };
+    }, [branchLocation]);
+
     const managerOptions = managerList.map((m) => ({
         value: m.id,
         label: m.name,
@@ -151,14 +194,14 @@ export default function Form({
                     <div className="card-body p-4">
                         <form onSubmit={submit}>
                             <div className="row">
-                                {/* ── BASIC INFO ── */}
+                                {/* BASIC INFO */}
                                 <div className="col-12 mb-2">
                                     <h6 className="fw-bold text-dark border-bottom pb-2">
                                         Basic Information
                                     </h6>
                                 </div>
 
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Employee Name{" "}
@@ -183,7 +226,7 @@ export default function Form({
                                     </div>
                                 </div>
 
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Email (Login){" "}
@@ -208,7 +251,7 @@ export default function Form({
                                     </div>
                                 </div>
 
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Password{" "}
@@ -242,8 +285,7 @@ export default function Form({
                                     </div>
                                 </div>
 
-                                {/* Role */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Role{" "}
@@ -286,12 +328,11 @@ export default function Form({
                                     </div>
                                 </div>
 
-                                {/* Reporting To — shown after role selected */}
                                 {data.role_id && (
-                                    <div className="col-md-6">
+                                    <div className="col-md-4">
                                         <div className="mb-3">
                                             <label className="form-label fw-semibold">
-                                                Reporting To
+                                                Reporting To{" "}
                                                 {loadingManagers && (
                                                     <span className="spinner-border spinner-border-sm ms-2"></span>
                                                 )}
@@ -313,7 +354,7 @@ export default function Form({
                                                 }
                                                 placeholder={
                                                     loadingManagers
-                                                        ? "Loading managers..."
+                                                        ? "Loading..."
                                                         : managerOptions.length ===
                                                             0
                                                           ? "No managers available"
@@ -328,15 +369,17 @@ export default function Form({
                                     </div>
                                 )}
 
-                                {/* Designation */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
-                                            Designation
+                                            Designation{" "}
+                                            <span className="text-danger">
+                                                *
+                                            </span>
                                         </label>
                                         <input
                                             type="text"
-                                            className="form-control"
+                                            className={`form-control ${errors.designation ? "is-invalid" : ""}`}
                                             value={data.designation}
                                             onChange={(e) =>
                                                 setData(
@@ -344,33 +387,25 @@ export default function Form({
                                                     e.target.value,
                                                 )
                                             }
-                                            placeholder="e.g. Sales Manager, On-Trade"
+                                            placeholder="e.g. Sales Manager"
+                                            required
                                         />
+                                        {errors.designation && (
+                                            <div className="invalid-feedback">
+                                                {errors.designation}
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* ── ORGANIZATION ── */}
+                                {/* ORGANIZATION */}
                                 <div className="col-12 mt-2 mb-2">
                                     <h6 className="fw-bold text-dark border-bottom pb-2">
                                         Organization
                                     </h6>
                                 </div>
 
-                                {/* Company — read only */}
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <label className="form-label fw-semibold">
-                                            Company
-                                        </label>
-                                        <div className="form-control bg-light d-flex align-items-center">
-                                            <i className="fas fa-building me-2 text-muted"></i>
-                                            <span>{company?.name || "—"}</span>
-                                        </div>
-                                    </div>
-                                </div>
-
-                                {/* Branch */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Branch
@@ -384,50 +419,24 @@ export default function Form({
                                                         data.branch_id,
                                                 ) || null
                                             }
-                                            onChange={(o) =>
-                                                setData(
-                                                    "branch_id",
-                                                    o?.value || null,
-                                                )
-                                            }
+                                            onChange={handleBranchChange}
                                             placeholder="Select branch..."
                                             isClearable
                                             menuPortalTarget={document.body}
                                             styles={selectStyles}
                                         />
+                                        {branchLocation && (
+                                            <small className="text-success d-block mt-1">
+                                                <i className="fas fa-check-circle me-1"></i>
+                                                {[branchLocation.zone_name]
+                                                    .filter(Boolean)
+                                                    .join(" → ")}
+                                            </small>
+                                        )}
                                     </div>
                                 </div>
 
-                                {/* Department */}
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <label className="form-label fw-semibold">
-                                            Department
-                                        </label>
-                                        <Select
-                                            options={departmentOptions}
-                                            value={
-                                                departmentOptions.find(
-                                                    (o) =>
-                                                        o.value ===
-                                                        data.dept_id,
-                                                ) || null
-                                            }
-                                            onChange={(o) =>
-                                                setData(
-                                                    "dept_id",
-                                                    o?.value || null,
-                                                )
-                                            }
-                                            placeholder="Select department..."
-                                            isClearable
-                                            menuPortalTarget={document.body}
-                                            styles={selectStyles}
-                                        />
-                                    </div>
-                                </div>
-
-                                {/* ── ADDRESS ── */}
+                                {/* LOCATION */}
                                 <div className="col-12 mt-2 mb-2">
                                     <h6 className="fw-bold text-dark border-bottom pb-2">
                                         Location
@@ -435,20 +444,39 @@ export default function Form({
                                 </div>
 
                                 <AddressSection
+                                    key={data.address || "empty"}
                                     address={data.address}
                                     areaId={data.area_id}
                                     pinCode={data.pin_code}
-                                    userLocation={userLocation}
+                                    userLocation={
+                                        branchLocation
+                                            ? {
+                                                  zone_id:
+                                                      branchLocation.zone_id,
+                                                  zone_name:
+                                                      branchLocation.zone_name,
+                                                  state_id:
+                                                      branchLocation.state_id,
+                                                  state_name:
+                                                      branchLocation.state_name,
+                                                  city_id:
+                                                      branchLocation.city_id,
+                                                  city_name:
+                                                      branchLocation.city_name,
+                                              }
+                                            : userLocation
+                                    }
                                     locationLocks={locationLocks}
                                     onChange={handleAddressChange}
                                     errors={errors}
                                     label="Employee Address"
+                                    restrictStateName={branchStateName}
                                 />
 
-                                {/* ── CONTACT ── */}
+                                {/* CONTACT */}
                                 <div className="col-12 mt-2 mb-2">
                                     <h6 className="fw-bold text-dark border-bottom pb-2">
-                                        Contact Details
+                                        Contact & Joining Details
                                     </h6>
                                 </div>
 
@@ -493,23 +521,20 @@ export default function Form({
                                 <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
-                                            Email
+                                            Date of Joining
                                         </label>
                                         <input
-                                            type="email"
+                                            type="date"
                                             className="form-control"
-                                            value={data.email_1}
+                                            value={data.doj}
                                             onChange={(e) =>
-                                                setData(
-                                                    "email_1",
-                                                    e.target.value,
-                                                )
+                                                setData("doj", e.target.value)
                                             }
                                         />
                                     </div>
                                 </div>
 
-                                {/* ── DOCUMENTS ── */}
+                                {/* DOCUMENTS */}
                                 <div className="col-12 mt-2 mb-2">
                                     <h6 className="fw-bold text-dark border-bottom pb-2">
                                         Documents
@@ -591,45 +616,6 @@ export default function Form({
                                                 }}
                                             />
                                         )}
-                                    </div>
-                                </div>
-
-                                {/* ── DATES ── */}
-                                <div className="col-12 mt-2 mb-2">
-                                    <h6 className="fw-bold text-dark border-bottom pb-2">
-                                        Dates
-                                    </h6>
-                                </div>
-
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <label className="form-label fw-semibold">
-                                            Date of Birth
-                                        </label>
-                                        <input
-                                            type="date"
-                                            className="form-control"
-                                            value={data.dob}
-                                            onChange={(e) =>
-                                                setData("dob", e.target.value)
-                                            }
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="col-md-6">
-                                    <div className="mb-3">
-                                        <label className="form-label fw-semibold">
-                                            Date of Joining
-                                        </label>
-                                        <input
-                                            type="date"
-                                            className="form-control"
-                                            value={data.doj}
-                                            onChange={(e) =>
-                                                setData("doj", e.target.value)
-                                            }
-                                        />
                                     </div>
                                 </div>
                             </div>

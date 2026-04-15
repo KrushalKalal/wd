@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { Link, usePage } from "@inertiajs/react";
+import FlagBadge from "@/Components/FlagBadge";
 
 export default function Header({ toggleSidebar }) {
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -27,7 +28,6 @@ export default function Header({ toggleSidebar }) {
             <header className="header d-flex align-items-center justify-content-between">
                 {/* LEFT SIDE */}
                 <div className="d-flex align-items-center gap-3">
-                    {/* Sidebar Toggle */}
                     <button
                         className="btn btn-sm border-0 d-lg-none"
                         onClick={toggleSidebar}
@@ -35,7 +35,6 @@ export default function Header({ toggleSidebar }) {
                         <i className="fa fa-bars fa-lg"></i>
                     </button>
 
-                    {/* Logo */}
                     <Link href={route("dashboard")}>
                         <img
                             src="/assets/img/wd_logo.png"
@@ -47,13 +46,8 @@ export default function Header({ toggleSidebar }) {
 
                 {/* RIGHT SIDE */}
                 <div className="d-flex align-items-center gap-3">
-                    {/* Notification Icon example */}
-                    {/* <button className="btn btn-sm position-relative border-0 bg-transparent">
-                        <i className="fa fa-bell fa-lg"></i>
-                        <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
-                            3
-                        </span>
-                    </button> */}
+                    {/* ── FLAG NOTIFICATION BADGE ── */}
+                    <FlagBadge />
 
                     {/* User Dropdown */}
                     <div className="dropdown" ref={dropdownRef}>

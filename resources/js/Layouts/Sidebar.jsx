@@ -88,6 +88,11 @@ export default function Sidebar({ isOpen = true }) {
                         icon: "fa fa-bullseye",
                         href: route("employee-target.index"),
                     },
+                    {
+                        label: "Sales Employee Management",
+                        icon: "fa fa-route",
+                        href: route("employee-management.index"),
+                    },
                 ],
             },
             {
@@ -114,6 +119,11 @@ export default function Sidebar({ isOpen = true }) {
                         label: "Store Management",
                         icon: "fa fa-boxes-stacked",
                         href: route("store-management.index"),
+                    },
+                    {
+                        label: "Flagged Stores",
+                        icon: "fa fa-flag",
+                        href: route("flagged-stores.index"),
                     },
                 ],
             },
@@ -235,6 +245,11 @@ export default function Sidebar({ isOpen = true }) {
                         icon: "fa fa-bullseye",
                         href: route("employee-target.index"),
                     },
+                    {
+                        label: "Sales Employee Management",
+                        icon: "fa fa-route",
+                        href: route("employee-management.index"),
+                    },
                 ],
             },
             {
@@ -261,6 +276,11 @@ export default function Sidebar({ isOpen = true }) {
                         label: "Store Management",
                         icon: "fa fa-boxes-stacked",
                         href: route("store-management.index"),
+                    },
+                    {
+                        label: "Flagged Stores",
+                        icon: "fa fa-flag",
+                        href: route("flagged-stores.index"),
                     },
                 ],
             },
@@ -360,6 +380,11 @@ export default function Sidebar({ isOpen = true }) {
                         icon: "fa fa-bullseye",
                         href: route("employee-target.index"),
                     },
+                    {
+                        label: "Sales Employee Management",
+                        icon: "fa fa-route",
+                        href: route("employee-management.index"),
+                    },
                 ],
             },
             {
@@ -386,6 +411,11 @@ export default function Sidebar({ isOpen = true }) {
                         label: "Store Management",
                         icon: "fa fa-boxes-stacked",
                         href: route("store-management.index"),
+                    },
+                    {
+                        label: "Flagged Stores",
+                        icon: "fa fa-flag",
+                        href: route("flagged-stores.index"),
                     },
                 ],
             },
@@ -453,6 +483,11 @@ export default function Sidebar({ isOpen = true }) {
                         icon: "fa fa-bullseye",
                         href: route("employee-target.index"),
                     },
+                    {
+                        label: "Sales Employee Management",
+                        icon: "fa fa-route",
+                        href: route("employee-management.index"),
+                    },
                 ],
             },
             {
@@ -479,6 +514,11 @@ export default function Sidebar({ isOpen = true }) {
                         label: "Store Management",
                         icon: "fa fa-boxes-stacked",
                         href: route("store-management.index"),
+                    },
+                    {
+                        label: "Flagged Stores",
+                        icon: "fa fa-flag",
+                        href: route("flagged-stores.index"),
                     },
                 ],
             },
@@ -536,6 +576,11 @@ export default function Sidebar({ isOpen = true }) {
                         icon: "fa fa-bullseye",
                         href: route("employee-target.index"),
                     },
+                    {
+                        label: "Sales Employee Management",
+                        icon: "fa fa-route",
+                        href: route("employee-management.index"),
+                    },
                 ],
             },
             {
@@ -557,6 +602,11 @@ export default function Sidebar({ isOpen = true }) {
                         label: "Store Management",
                         icon: "fa fa-boxes-stacked",
                         href: route("store-management.index"),
+                    },
+                    {
+                        label: "Flagged Stores",
+                        icon: "fa fa-flag",
+                        href: route("flagged-stores.index"),
                     },
                 ],
             },
@@ -585,6 +635,11 @@ export default function Sidebar({ isOpen = true }) {
                         icon: "fa fa-bullseye",
                         href: route("employee-target.index"),
                     },
+                    {
+                        label: "Sales Employee Management",
+                        icon: "fa fa-route",
+                        href: route("employee-management.index"),
+                    },
                 ],
             },
             {
@@ -601,6 +656,11 @@ export default function Sidebar({ isOpen = true }) {
                         label: "Store Management",
                         icon: "fa fa-boxes-stacked",
                         href: route("store-management.index"),
+                    },
+                    {
+                        label: "Flagged Stores",
+                        icon: "fa fa-flag",
+                        href: route("flagged-stores.index"),
                     },
                 ],
             },

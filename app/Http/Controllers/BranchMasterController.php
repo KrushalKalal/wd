@@ -499,4 +499,20 @@ class BranchMasterController extends Controller
             return back()->with('error', 'Excel upload failed: ' . $e->getMessage());
         }
     }
+
+    public function getDetails($id)
+    {
+        $branch = Branch::with(['state.zone', 'city', 'area'])->findOrFail($id);
+
+        return response()->json([
+            'zone_id' => $branch->state?->zone_id,
+            'zone_name' => $branch->state?->zone?->name,
+            'state_id' => $branch->state_id,
+            'state_name' => $branch->state?->name,
+            'city_id' => $branch->city_id,
+            'city_name' => $branch->city?->name,
+            'area_id' => $branch->area_id,
+            'area_name' => $branch->area?->name,
+        ]);
+    }
 }

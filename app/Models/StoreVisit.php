@@ -16,13 +16,16 @@ class StoreVisit extends Model
         'latitude',
         'longitude',
         'status',
-        'visit_summary'
+        'visit_summary',
+        'daily_plan_store_id',   // NEW — null = walk-in, set = planned visit
     ];
 
     protected $casts = [
         'is_active' => 'boolean',
         'visit_date' => 'date',
     ];
+
+    // ─── Existing relations (unchanged) ───────────────────────────
 
     public function employee()
     {
@@ -44,6 +47,34 @@ class StoreVisit extends Model
         return $this->hasMany(StockTransaction::class, 'visit_id');
     }
 
+    public function orders()
+    {
+        return $this->hasMany(Order::class, 'visit_id');
+    }
+
+    // ─── NEW: Daily plan relation ──────────────────────────────────
+
+    /**
+     * The daily plan store entry this visit belongs to.
+     * Null when the visit is a walk-in (unplanned).
+     */
+    public function dailyPlanStore()
+    {
+        return $this->belongsTo(DailyPlanStore::class);
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────
+
+    /**
+     * Was this visit part of a daily plan?
+     */
+    public function isPlanned(): bool
+    {
+        return $this->daily_plan_store_id !== null;
+    }
+
+    // ─── Scopes (unchanged) ───────────────────────────────────────
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
@@ -58,10 +89,4 @@ class StoreVisit extends Model
     {
         return $query->whereDate('visit_date', today());
     }
-
-    public function orders()
-    {
-        return $this->hasMany(Order::class, 'visit_id');
-    }
 }
-

@@ -16,18 +16,8 @@ export default function Index({
         { key: "pack_size", label: "Pack Size", width: "90px" },
         { key: "volume", label: "Volume", width: "90px" },
         { key: "total_stock", label: "Stock", width: "80px" },
-        {
-            key: "image",
-            label: "Image",
-            width: "80px",
-            type: "custom",
-        },
-        {
-            key: "catalogue_pdf",
-            label: "Catalogue",
-            width: "100px",
-            type: "pdf",
-        },
+        { key: "image", label: "Image", width: "80px", type: "custom" },
+        // { key: "catalogue_pdf", label: "Catalogue", width: "100px", type: "pdf" },
     ];
 
     const customRender = (row, col) => {

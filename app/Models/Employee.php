@@ -12,7 +12,7 @@ class Employee extends Model
         'company_id',
         'branch_id',
         'dept_id',
-        'zone_id',  // ADDED
+        'zone_id',
         'state_id',
         'city_id',
         'area_id',
@@ -44,7 +44,8 @@ class Employee extends Model
         'doj' => 'date',
     ];
 
-    // Relations
+    // ─── Existing relations (unchanged) ───────────────────────────
+
     public function user()
     {
         return $this->belongsTo(User::class);
@@ -135,18 +136,62 @@ class Employee extends Model
             ->where('year', now()->year);
     }
 
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
-
     public function orders()
     {
         return $this->hasMany(Order::class);
     }
 
+    // ─── NEW: Daily plan relations ─────────────────────────────────
+
+    public function dailyPlans()
+    {
+        return $this->hasMany(DailyPlan::class);
+    }
+
+    /**
+     * Today's plan — use as:  $employee->todaysPlan
+     */
+    public function todaysPlan()
+    {
+        return $this->hasOne(DailyPlan::class)
+            ->whereDate('plan_date', today());
+    }
+
+    /**
+     * Plan for a specific date — use as:
+     *   $employee->planForDate('2025-01-15')
+     */
+    public function planForDate(string $date)
+    {
+        return $this->dailyPlans()
+            ->whereDate('plan_date', $date)
+            ->with(['planStores.store', 'planStores.visit'])
+            ->first();
+    }
+
+    // ─── Scopes ───────────────────────────────────────────────────
+
+    public function scopeActive($query)
+    {
+        return $query->where('is_active', true);
+    }
+
+    // ─── Helpers (unchanged) ──────────────────────────────────────
+
     public function hasActivePromocode()
     {
-        return $this->promocode && $this->promocode_active && $this->promocode_discount_percentage > 0;
+        return $this->promocode
+            && $this->promocode_active
+            && $this->promocode_discount_percentage > 0;
+    }
+
+    public function storeFlags()
+    {
+        return $this->hasMany(StoreFlag::class);
+    }
+
+    public function activeStoreFlags()
+    {
+        return $this->hasMany(StoreFlag::class)->where('is_resolved', false);
     }
 }

@@ -92,7 +92,7 @@ export default function Form({
                         <form onSubmit={submit}>
                             <div className="row">
                                 {/* Company — read only label */}
-                                <div className="col-md-6">
+                                {/* <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Company
@@ -102,10 +102,10 @@ export default function Form({
                                             <span>{company?.name || "—"}</span>
                                         </div>
                                     </div>
-                                </div>
+                                </div> */}
 
                                 {/* Branch Name */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Branch Name{" "}
@@ -131,7 +131,7 @@ export default function Form({
                                 </div>
 
                                 {/* Contact 1 */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Contact Number 1
@@ -152,7 +152,7 @@ export default function Form({
                                 </div>
 
                                 {/* Contact 2 */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Contact Number 2
@@ -173,7 +173,7 @@ export default function Form({
                                 </div>
 
                                 {/* Email */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Email

@@ -23,8 +23,8 @@ class Store extends Model
         'contact_number_1',
         'contact_number_2',
         'email',
-        'billing_details',
-        'shipping_details',
+        // 'billing_details',
+        // 'shipping_details',
         'manual_stock_entry',
         'is_active',
         'created_by_employee_id',
@@ -33,80 +33,74 @@ class Store extends Model
     protected $casts = [
         'is_active' => 'boolean',
         'manual_stock_entry' => 'boolean',
-        'billing_details' => 'array',
-        'shipping_details' => 'array',
+        // 'billing_details' => 'array',
+        // 'shipping_details' => 'array',
     ];
 
     public function state()
     {
         return $this->belongsTo(State::class);
     }
-
     public function city()
     {
         return $this->belongsTo(City::class);
     }
-
     public function area()
     {
         return $this->belongsTo(Area::class);
     }
-
-    // Access zone through state
-    public function zone()
-    {
-        return $this->hasOneThrough(
-            Zone::class,
-            State::class,
-            'id',
-            'id',
-            'state_id',
-            'zone_id'
-        );
-    }
-
     public function storeProducts()
     {
         return $this->hasMany(StoreProduct::class);
     }
-
     public function visits()
     {
         return $this->hasMany(StoreVisit::class);
     }
-
     public function employees()
     {
         return $this->hasMany(Employee::class);
+    }
+    public function orders()
+    {
+        return $this->hasMany(Order::class);
+    }
+    public function createdByEmployee()
+    {
+        return $this->belongsTo(Employee::class, 'created_by_employee_id');
     }
 
     public function categoryOne()
     {
         return $this->belongsTo(CategoryOne::class, 'category_one_id');
     }
-
     public function categoryTwo()
     {
         return $this->belongsTo(CategoryTwo::class, 'category_two_id');
     }
-
     public function categoryThree()
     {
         return $this->belongsTo(CategoryThree::class, 'category_three_id');
     }
 
+    // ── NEW ───────────────────────────────────────────────────────────────
+    public function flags()
+    {
+        return $this->hasMany(StoreFlag::class);
+    }
+
+    public function activeFlags()
+    {
+        return $this->hasMany(StoreFlag::class)->where('is_resolved', false);
+    }
+
+    public function zone()
+    {
+        return $this->hasOneThrough(Zone::class, State::class, 'id', 'id', 'state_id', 'zone_id');
+    }
+
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
-    }
-
-    public function orders()
-    {
-        return $this->hasMany(Order::class);
-    }
-
-    public function createdByEmployee()
-    {
-        return $this->belongsTo(Employee::class, 'created_by_employee_id');
     }
 }

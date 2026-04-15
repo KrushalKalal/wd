@@ -29,20 +29,15 @@ export default function Details({ auth, store, visits }) {
         url: null,
         title: "",
     });
-
     const [mapModal, setMapModal] = useState({
         show: false,
         latitude: null,
         longitude: null,
     });
-
-    // NEW: Invoice Modal
     const [invoiceModal, setInvoiceModal] = useState({
         show: false,
         order: null,
     });
-
-    // NEW: Order Status Modal
     const [orderStatusModal, setOrderStatusModal] = useState({
         show: false,
         orderId: null,
@@ -91,21 +86,17 @@ export default function Details({ auth, store, visits }) {
 
     const handleBulkApproveVisit = async () => {
         if (!activeVisitId) return;
-
         if (
             !confirm(
                 "Approve ALL pending surveys and stock transactions for this visit?",
             )
-        ) {
+        )
             return;
-        }
-
         try {
             const response = await axios.post(
                 `/store-management/visits/${activeVisitId}/bulk-approve`,
                 { admin_remark: "Bulk approved" },
             );
-
             if (response.data.success) {
                 setAlert({
                     show: true,
@@ -139,7 +130,6 @@ export default function Details({ auth, store, visits }) {
                     admin_remark: reviewRemark,
                 },
             );
-
             if (response.data.success) {
                 setAlert({
                     show: true,
@@ -170,27 +160,15 @@ export default function Details({ auth, store, visits }) {
     const confirmStockAction = async () => {
         try {
             const { action, transactionId } = stockModal;
-            let endpoint = "";
-
-            switch (action) {
-                case "approve":
-                    endpoint = `/store-management/stock/${transactionId}/approve`;
-                    break;
-                case "reject":
-                    endpoint = `/store-management/stock/${transactionId}/reject`;
-                    break;
-                case "deliver":
-                    endpoint = `/store-management/stock/${transactionId}/deliver`;
-                    break;
-                case "return":
-                    endpoint = `/store-management/stock/${transactionId}/return`;
-                    break;
-            }
-
-            const response = await axios.post(endpoint, {
+            const endpoints = {
+                approve: `/store-management/stock/${transactionId}/approve`,
+                reject: `/store-management/stock/${transactionId}/reject`,
+                deliver: `/store-management/stock/${transactionId}/deliver`,
+                return: `/store-management/stock/${transactionId}/return`,
+            };
+            const response = await axios.post(endpoints[action], {
                 admin_remark: stockRemark,
             });
-
             if (response.data.success) {
                 setAlert({
                     show: true,
@@ -209,10 +187,7 @@ export default function Details({ auth, store, visits }) {
         }
     };
 
-    // NEW: Handle Invoice Modal
-    const handleViewInvoice = (order) => {
-        setInvoiceModal({ show: true, order });
-    };
+    const handleViewInvoice = (order) => setInvoiceModal({ show: true, order });
 
     const handleDownloadInvoice = (order) => {
         if (order.invoice_pdf_path) {
@@ -226,7 +201,6 @@ export default function Details({ auth, store, visits }) {
         }
     };
 
-    // NEW: Handle Order Status Update
     const handleUpdateOrderStatus = (orderId, currentStatus) => {
         setOrderStatusModal({ show: true, orderId, currentStatus });
         setOrderStatus(currentStatus);
@@ -242,7 +216,6 @@ export default function Details({ auth, store, visits }) {
                     notes: orderNotes,
                 },
             );
-
             if (response.data.success) {
                 setAlert({
                     show: true,
@@ -267,33 +240,18 @@ export default function Details({ auth, store, visits }) {
         }
     };
 
-    const pendingSurveys =
-        activeVisit?.question_answers?.filter(
-            (a) =>
-                a.admin_status === "pending" ||
-                a.admin_status === "needs_review",
-        ) || [];
-
-    const pendingStock =
-        activeVisit?.stock_transactions?.filter(
-            (t) => t.status === "pending",
-        ) || [];
-
     const handleBulkDeliverOrder = async (orderId) => {
         if (
             !confirm(
                 "Mark this entire order as delivered? This will update stock levels.",
             )
-        ) {
+        )
             return;
-        }
-
         try {
             const response = await axios.post(
                 `/store-management/orders/${orderId}/bulk-deliver`,
                 { admin_remark: "Bulk delivered from admin panel" },
             );
-
             if (response.data.success) {
                 setAlert({
                     show: true,
@@ -311,6 +269,17 @@ export default function Details({ auth, store, visits }) {
             });
         }
     };
+
+    const pendingSurveys =
+        activeVisit?.question_answers?.filter(
+            (a) =>
+                a.admin_status === "pending" ||
+                a.admin_status === "needs_review",
+        ) || [];
+    const pendingStock =
+        activeVisit?.stock_transactions?.filter(
+            (t) => t.status === "pending",
+        ) || [];
 
     return (
         <MainLayout user={auth.user} title="Store Management Details">
@@ -339,8 +308,7 @@ export default function Details({ auth, store, visits }) {
                             className="btn btn-dark text-white"
                             onClick={() => router.visit("/store-management")}
                         >
-                            <i className="fas fa-arrow-left me-2"></i>
-                            Back
+                            <i className="fas fa-arrow-left me-2"></i>Back
                         </button>
                     </div>
                 </div>
@@ -349,8 +317,8 @@ export default function Details({ auth, store, visits }) {
                 <div className="card border-0 shadow-sm mb-4">
                     <div className="card-header bg-dark text-white border-0">
                         <h5 className="mb-0 text-white">
-                            <i className="fas fa-info-circle me-2"></i>
-                            Store Information
+                            <i className="fas fa-info-circle me-2"></i>Store
+                            Information
                         </h5>
                     </div>
                     <div className="card-body">
@@ -433,55 +401,76 @@ export default function Details({ auth, store, visits }) {
                                 className="btn-group-vertical w-100"
                                 role="group"
                             >
-                                {visits.map((visit) => (
-                                    <button
-                                        key={visit.id}
-                                        type="button"
-                                        className={`btn text-start ${
-                                            activeVisitId === visit.id
-                                                ? "btn-dark text-white"
-                                                : "btn-outline-dark"
-                                        }`}
-                                        onClick={() =>
-                                            setActiveVisitId(visit.id)
-                                        }
-                                    >
-                                        <div className="d-flex justify-content-between align-items-center">
-                                            <div>
-                                                <strong>
-                                                    {new Date(
-                                                        visit.visit_date,
-                                                    ).toLocaleDateString()}
-                                                </strong>
-                                                <span className="mx-2">•</span>
-                                                <span>
-                                                    {visit.employee.name}
-                                                </span>
+                                {visits.map((visit) => {
+                                    // Check if this visit has any breakage answer with count > 0
+                                    const hasBreakage =
+                                        visit.question_answers?.some(
+                                            (a) => a.is_breakage && a.count > 0,
+                                        );
+                                    return (
+                                        <button
+                                            key={visit.id}
+                                            type="button"
+                                            className={`btn text-start ${activeVisitId === visit.id ? "btn-dark text-white" : "btn-outline-dark"}`}
+                                            onClick={() =>
+                                                setActiveVisitId(visit.id)
+                                            }
+                                        >
+                                            <div className="d-flex justify-content-between align-items-center">
+                                                <div>
+                                                    <strong>
+                                                        {new Date(
+                                                            visit.visit_date,
+                                                        ).toLocaleDateString()}
+                                                    </strong>
+                                                    <span className="mx-2">
+                                                        •
+                                                    </span>
+                                                    <span>
+                                                        {visit.employee.name}
+                                                    </span>
+                                                    {/* Breakage flag in visit list */}
+                                                    {hasBreakage && (
+                                                        <span
+                                                            className="badge ms-2"
+                                                            style={{
+                                                                backgroundColor:
+                                                                    "#dc3545",
+                                                                fontSize: 10,
+                                                            }}
+                                                        >
+                                                            <i className="fas fa-exclamation-triangle me-1"></i>
+                                                            Breakage
+                                                        </span>
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <span
+                                                        className={`badge me-2 ${visit.status === "completed" ? "bg-success" : "bg-warning text-dark"}`}
+                                                    >
+                                                        {visit.status.toUpperCase()}
+                                                    </span>
+                                                    <span className="badge bg-secondary me-2">
+                                                        {visit.question_answers
+                                                            ?.length || 0}{" "}
+                                                        Surveys
+                                                    </span>
+                                                    <span className="badge bg-dark me-2">
+                                                        {visit
+                                                            .stock_transactions
+                                                            ?.length || 0}{" "}
+                                                        Stock
+                                                    </span>
+                                                    <span className="badge bg-info text-white">
+                                                        {visit.orders?.length ||
+                                                            0}{" "}
+                                                        Orders
+                                                    </span>
+                                                </div>
                                             </div>
-                                            <div>
-                                                <span
-                                                    className={`badge me-2 ${visit.status === "completed" ? "bg-success" : "bg-warning text-dark"}`}
-                                                >
-                                                    {visit.status.toUpperCase()}
-                                                </span>
-                                                <span className="badge bg-secondary me-2">
-                                                    {visit.question_answers
-                                                        ?.length || 0}{" "}
-                                                    Surveys
-                                                </span>
-                                                <span className="badge bg-dark me-2">
-                                                    {visit.stock_transactions
-                                                        ?.length || 0}{" "}
-                                                    Stock
-                                                </span>
-                                                <span className="badge bg-info text-white">
-                                                    {visit.orders?.length || 0}{" "}
-                                                    Orders
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </button>
-                                ))}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         </div>
                     </div>
@@ -490,7 +479,7 @@ export default function Details({ auth, store, visits }) {
                 {/* ACTIVE VISIT DETAILS */}
                 {activeVisit && (
                     <>
-                        {/* VISIT INFO */}
+                        {/* VISIT INFO + SUMMARY */}
                         <div className="row g-4 mb-4">
                             <div className="col-md-6">
                                 <div className="card border-0 shadow-sm h-100">
@@ -563,7 +552,6 @@ export default function Details({ auth, store, visits }) {
                                                                             },
                                                                         )
                                                                     }
-                                                                    title="View on Map"
                                                                 >
                                                                     <i className="fas fa-map-marker-alt me-2"></i>
                                                                     View
@@ -599,6 +587,7 @@ export default function Details({ auth, store, visits }) {
                                         </h5>
                                     </div>
                                     <div className="card-body">
+                                        {/* Survey summary */}
                                         <div className="mb-3">
                                             <h6 className="text-dark fw-semibold mb-2">
                                                 Survey Answers:{" "}
@@ -629,7 +618,40 @@ export default function Details({ auth, store, visits }) {
                                                     ) : null;
                                                 })}
                                             </div>
+                                            {/* Breakage summary in summary card */}
+                                            {activeVisit.question_answers?.some(
+                                                (a) => a.is_breakage,
+                                            ) && (
+                                                <div className="mt-2">
+                                                    {activeVisit.question_answers
+                                                        .filter(
+                                                            (a) =>
+                                                                a.is_breakage,
+                                                        )
+                                                        .map((a) => (
+                                                            <span
+                                                                key={a.id}
+                                                                className="badge d-inline-flex align-items-center gap-1"
+                                                                style={{
+                                                                    backgroundColor:
+                                                                        "#dc3545",
+                                                                    color: "white",
+                                                                }}
+                                                            >
+                                                                <i
+                                                                    className="fas fa-exclamation-triangle"
+                                                                    style={{
+                                                                        fontSize: 9,
+                                                                    }}
+                                                                ></i>
+                                                                Breakage:{" "}
+                                                                {a.count ?? "—"}
+                                                            </span>
+                                                        ))}
+                                                </div>
+                                            )}
                                         </div>
+                                        {/* Stock summary */}
                                         <div className="mb-3">
                                             <h6 className="text-dark fw-semibold mb-2">
                                                 Stock Transactions:{" "}
@@ -662,6 +684,7 @@ export default function Details({ auth, store, visits }) {
                                                 })}
                                             </div>
                                         </div>
+                                        {/* Orders summary */}
                                         <div>
                                             <h6 className="text-dark fw-semibold mb-2">
                                                 Orders:{" "}
@@ -700,13 +723,10 @@ export default function Details({ auth, store, visits }) {
                                                             Total Sales: ₹
                                                             {activeVisit.orders
                                                                 .reduce(
-                                                                    (
-                                                                        sum,
-                                                                        order,
-                                                                    ) =>
+                                                                    (sum, o) =>
                                                                         sum +
                                                                         parseFloat(
-                                                                            order.total_amount ||
+                                                                            o.total_amount ||
                                                                                 0,
                                                                         ),
                                                                     0,
@@ -721,7 +741,7 @@ export default function Details({ auth, store, visits }) {
                             </div>
                         </div>
 
-                        {/* ORDERS SECTION - NEW */}
+                        {/* ORDERS SECTION */}
                         {activeVisit.orders &&
                             activeVisit.orders.length > 0 && (
                                 <div className="card border-0 shadow-sm mb-4">
@@ -797,41 +817,32 @@ export default function Details({ auth, store, visits }) {
                                                                     )}
                                                                 </td>
                                                                 <td>
-                                                                    {(order.offer_discount >
-                                                                        0 ||
-                                                                        order.promocode_discount >
-                                                                            0) && (
-                                                                        <div>
-                                                                            {order.offer_discount >
-                                                                                0 && (
-                                                                                <div className="text-success small">
-                                                                                    Offer:
-                                                                                    -₹
-                                                                                    {parseFloat(
-                                                                                        order.offer_discount,
-                                                                                    ).toFixed(
-                                                                                        2,
-                                                                                    )}
-                                                                                </div>
-                                                                            )}
-                                                                            {order.promocode_discount >
-                                                                                0 && (
-                                                                                <div className="text-success small">
-                                                                                    Promo:
-                                                                                    -₹
-                                                                                    {parseFloat(
-                                                                                        order.promocode_discount,
-                                                                                    ).toFixed(
-                                                                                        2,
-                                                                                    )}
-                                                                                </div>
+                                                                    {order.offer_discount >
+                                                                        0 && (
+                                                                        <div className="text-success small">
+                                                                            Offer:
+                                                                            -₹
+                                                                            {parseFloat(
+                                                                                order.offer_discount,
+                                                                            ).toFixed(
+                                                                                2,
                                                                             )}
                                                                         </div>
                                                                     )}
-                                                                    {order.offer_discount ===
-                                                                        0 &&
-                                                                        order.promocode_discount ===
-                                                                            0 && (
+                                                                    {order.promocode_discount >
+                                                                        0 && (
+                                                                        <div className="text-success small">
+                                                                            Promo:
+                                                                            -₹
+                                                                            {parseFloat(
+                                                                                order.promocode_discount,
+                                                                            ).toFixed(
+                                                                                2,
+                                                                            )}
+                                                                        </div>
+                                                                    )}
+                                                                    {!order.offer_discount &&
+                                                                        !order.promocode_discount && (
                                                                             <span className="text-muted">
                                                                                 —
                                                                             </span>
@@ -937,7 +948,7 @@ export default function Details({ auth, store, visits }) {
                                 </div>
                             )}
 
-                        {/* SURVEY ANSWERS */}
+                        {/* ── SURVEY ANSWERS ── */}
                         <div className="card border-0 shadow-sm mb-4">
                             <div className="card-header bg-dark text-white border-0">
                                 <h5 className="mb-0 text-white">
@@ -956,7 +967,38 @@ export default function Details({ auth, store, visits }) {
                                                     key={answer.id}
                                                     className="col-md-6"
                                                 >
-                                                    <div className="card border shadow-sm h-100">
+                                                    {/* ── Card: red border + banner when is_breakage ── */}
+                                                    <div
+                                                        className="card shadow-sm h-100"
+                                                        style={{
+                                                            border:
+                                                                answer.is_breakage &&
+                                                                answer.count > 0
+                                                                    ? "2px solid #dc3545"
+                                                                    : "1px solid #dee2e6",
+                                                        }}
+                                                    >
+                                                        {/* BREAKAGE BANNER */}
+                                                        {answer.is_breakage &&
+                                                            answer.count >
+                                                                0 && (
+                                                                <div
+                                                                    className="d-flex align-items-center gap-2 px-3 py-2"
+                                                                    style={{
+                                                                        backgroundColor:
+                                                                            "#dc3545",
+                                                                        color: "white",
+                                                                        fontSize: 12,
+                                                                        fontWeight: 700,
+                                                                        letterSpacing: 0.5,
+                                                                    }}
+                                                                >
+                                                                    <i className="fas fa-exclamation-triangle"></i>
+                                                                    BREAKAGE
+                                                                    REPORTED
+                                                                </div>
+                                                            )}
+
                                                         <div className="card-body">
                                                             <div className="d-flex justify-content-between align-items-start mb-3">
                                                                 <h6 className="mb-0 text-dark fw-semibold flex-grow-1">
@@ -999,17 +1041,41 @@ export default function Details({ auth, store, visits }) {
                                                                         answer.count !==
                                                                             undefined && (
                                                                             <div className="col-auto">
-                                                                                <div className="bg-dark text-white px-3 py-2 rounded d-flex align-items-center gap-2">
-                                                                                    <i className="fas fa-hashtag"></i>
+                                                                                {/* ── COUNT BOX: red if breakage, dark otherwise. NO # icon ── */}
+                                                                                <div
+                                                                                    className="px-3 py-2 rounded d-flex align-items-center gap-2"
+                                                                                    style={{
+                                                                                        backgroundColor:
+                                                                                            answer.is_breakage &&
+                                                                                            answer.count >
+                                                                                                0
+                                                                                                ? "#dc3545"
+                                                                                                : "#212529",
+                                                                                        color: "white",
+                                                                                        minWidth: 70,
+                                                                                    }}
+                                                                                >
+                                                                                    {answer.is_breakage && (
+                                                                                        <i
+                                                                                            className="fas fa-exclamation-triangle"
+                                                                                            style={{
+                                                                                                fontSize: 13,
+                                                                                            }}
+                                                                                        ></i>
+                                                                                    )}
                                                                                     <div>
                                                                                         <div
                                                                                             style={{
                                                                                                 fontSize:
                                                                                                     "0.7rem",
-                                                                                                opacity: 0.7,
+                                                                                                opacity: 0.8,
                                                                                             }}
                                                                                         >
-                                                                                            COUNT
+                                                                                            {answer.is_breakage &&
+                                                                                            answer.count >
+                                                                                                0
+                                                                                                ? "BREAKAGE"
+                                                                                                : "COUNT"}
                                                                                         </div>
                                                                                         <div
                                                                                             className="fw-bold"
@@ -1177,7 +1243,6 @@ export default function Details({ auth, store, visits }) {
                                                                             ?.mrp
                                                                     }
                                                                 </small>
-                                                                {/* NEW: Show if linked to order */}
                                                                 {txn.order_id && (
                                                                     <div className="mt-1">
                                                                         <span className="badge bg-info text-white">
@@ -1230,7 +1295,6 @@ export default function Details({ auth, store, visits }) {
                                                             </td>
                                                             <td>
                                                                 <div className="btn-group btn-group-sm">
-                                                                    {/* Only show action buttons for non-order transactions OR show info for order-linked */}
                                                                     {!txn.order_id ? (
                                                                         <>
                                                                             {txn.status ===
@@ -1340,9 +1404,9 @@ export default function Details({ auth, store, visits }) {
                     </div>
                 )}
 
-                {/* MODALS */}
+                {/* ── MODALS ── */}
 
-                {/* INVOICE MODAL - FIXED TO DISPLAY PDF */}
+                {/* Invoice Modal */}
                 {invoiceModal.show && invoiceModal.order && (
                     <div
                         className="modal show d-block"
@@ -1374,7 +1438,6 @@ export default function Details({ auth, store, visits }) {
                                     />
                                 </div>
                                 <div className="modal-body p-0">
-                                    {/* Display PDF */}
                                     {invoiceModal.order.invoice_pdf_path ? (
                                         <iframe
                                             src={`/storage/${invoiceModal.order.invoice_pdf_path}`}
@@ -1404,7 +1467,6 @@ export default function Details({ auth, store, visits }) {
                                             })
                                         }
                                     >
-                                        <i className="fas fa-times me-2"></i>
                                         Close
                                     </button>
                                     <button
@@ -1427,7 +1489,7 @@ export default function Details({ auth, store, visits }) {
                     </div>
                 )}
 
-                {/* ORDER STATUS UPDATE MODAL - NEW */}
+                {/* Order Status Modal */}
                 {orderStatusModal.show && (
                     <div
                         className="modal show d-block"
@@ -1520,6 +1582,7 @@ export default function Details({ auth, store, visits }) {
                         </div>
                     </div>
                 )}
+
                 {/* Review Survey Modal */}
                 {reviewModal.show && (
                     <div
@@ -1605,8 +1668,8 @@ export default function Details({ auth, store, visits }) {
                                         className="btn btn-dark text-white"
                                         onClick={submitSurveyReview}
                                     >
-                                        <i className="fas fa-save me-2"></i>
-                                        Save Review
+                                        <i className="fas fa-save me-2"></i>Save
+                                        Review
                                     </button>
                                 </div>
                             </div>
@@ -1785,7 +1848,6 @@ export default function Details({ auth, store, visits }) {
                                     />
                                 </div>
                                 <div className="modal-body p-0">
-                                    {/* Embedded Google Maps */}
                                     <iframe
                                         width="100%"
                                         height="500"
@@ -1794,8 +1856,6 @@ export default function Details({ auth, store, visits }) {
                                         src={`https://www.google.com/maps?q=${mapModal.latitude},${mapModal.longitude}&output=embed`}
                                         allowFullScreen
                                     ></iframe>
-
-                                    {/* Location Details */}
                                     <div className="p-3 bg-light border-top">
                                         <div className="row">
                                             <div className="col-md-6">

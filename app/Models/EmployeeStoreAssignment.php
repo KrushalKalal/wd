@@ -34,4 +34,33 @@ class EmployeeStoreAssignment extends Model
     {
         return $query->where('is_active', true);
     }
+
+    public function scopeMatchingEmployeeState($query, $employeeId)
+    {
+        return $query->where('employee_id', $employeeId)
+            ->active()
+            ->whereHas('store', function ($q) use ($employeeId) {
+                $q->where('state_id', function ($subQuery) use ($employeeId) {
+                    $subQuery->select('state_id')
+                        ->from('employees')
+                        ->where('id', $employeeId)
+                        ->limit(1);
+                });
+            });
+    }
+
+    public function scopeWhereStoreMatchesEmployeeState($query)
+    {
+        return $query->whereHas('store', function ($q) {
+            $q->whereColumn(
+                'stores.state_id',
+                'employee_store_assignments.employee_id',
+                function ($sub) {
+                    $sub->select('state_id')
+                        ->from('employees')
+                        ->whereColumn('employees.id', 'employee_store_assignments.employee_id');
+                }
+            );
+        });
+    }
 }

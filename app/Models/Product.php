@@ -18,7 +18,7 @@ class Product extends Model
         'image',
         'total_stock',
         'is_active',
-        'catalogue_pdf',
+        //'catalogue_pdf',
     ];
 
     protected $casts = [

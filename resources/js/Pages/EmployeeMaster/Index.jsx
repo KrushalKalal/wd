@@ -48,12 +48,12 @@ export default function Index({
         { key: "contact_number_1", label: "Contact", width: "110px" },
         { key: "manager_name", label: "Reporting", width: "120px" },
         // NEW: Promocode column
-        {
-            key: "promocode_info",
-            label: "Promocode",
-            width: "150px",
-            type: "custom",
-        },
+        // {
+        //     key: "promocode_info",
+        //     label: "Promocode",
+        //     width: "150px",
+        //     type: "custom",
+        // },
         {
             key: "images",
             label: "Images",
@@ -71,57 +71,57 @@ export default function Index({
     // Custom render for each row
     const customRender = (row, column) => {
         // NEW: Promocode column
-        if (column.key === "promocode_info") {
-            if (row.promocode) {
-                return (
-                    <div>
-                        <div className="d-flex align-items-center gap-2">
-                            <code className="bg-dark text-white px-2 py-1 rounded small">
-                                {row.promocode}
-                            </code>
+        // if (column.key === "promocode_info") {
+        //     if (row.promocode) {
+        //         return (
+        //             <div>
+        //                 <div className="d-flex align-items-center gap-2">
+        //                     <code className="bg-dark text-white px-2 py-1 rounded small">
+        //                         {row.promocode}
+        //                     </code>
 
-                            <button
-                                className={`btn btn-sm ${
-                                    row.promocode_active
-                                        ? "btn-success"
-                                        : "btn-outline-secondary"
-                                }`}
-                                title={
-                                    row.promocode_active
-                                        ? "Click to deactivate promocode"
-                                        : "Click to activate promocode"
-                                }
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    togglePromocode(
-                                        row.id,
-                                        row.promocode_active,
-                                    );
-                                }}
-                            >
-                                {row.promocode_active ? (
-                                    <>
-                                        <i className="fas fa-toggle-on me-1"></i>{" "}
-                                    </>
-                                ) : (
-                                    <>
-                                        <i className="fas fa-toggle-off me-1"></i>{" "}
-                                    </>
-                                )}
-                            </button>
-                        </div>
+        //                     <button
+        //                         className={`btn btn-sm ${
+        //                             row.promocode_active
+        //                                 ? "btn-success"
+        //                                 : "btn-outline-secondary"
+        //                         }`}
+        //                         title={
+        //                             row.promocode_active
+        //                                 ? "Click to deactivate promocode"
+        //                                 : "Click to activate promocode"
+        //                         }
+        //                         onClick={(e) => {
+        //                             e.stopPropagation();
+        //                             togglePromocode(
+        //                                 row.id,
+        //                                 row.promocode_active,
+        //                             );
+        //                         }}
+        //                     >
+        //                         {row.promocode_active ? (
+        //                             <>
+        //                                 <i className="fas fa-toggle-on me-1"></i>{" "}
+        //                             </>
+        //                         ) : (
+        //                             <>
+        //                                 <i className="fas fa-toggle-off me-1"></i>{" "}
+        //                             </>
+        //                         )}
+        //                     </button>
+        //                 </div>
 
-                        {row.promocode_active &&
-                            row.promocode_discount_percentage > 0 && (
-                                <small className="text-success fw-bold">
-                                    {row.promocode_discount_percentage}% OFF
-                                </small>
-                            )}
-                    </div>
-                );
-            }
-            return <span className="text-muted small">—</span>;
-        }
+        //                 {row.promocode_active &&
+        //                     row.promocode_discount_percentage > 0 && (
+        //                         <small className="text-success fw-bold">
+        //                             {row.promocode_discount_percentage}% OFF
+        //                         </small>
+        //                     )}
+        //             </div>
+        //         );
+        //     }
+        //     return <span className="text-muted small">—</span>;
+        // }
 
         // Images column
         if (column.key === "images") {
@@ -202,7 +202,9 @@ export default function Index({
         setSelectedStores([]);
 
         try {
-            const storesRes = await axios.get("/stores/all-active");
+            const storesRes = await axios.get("/stores/all-active", {
+                params: { employee_id: employeeId },
+            });
             const stores = Array.isArray(storesRes.data) ? storesRes.data : [];
             setAvailableStores(stores);
 
@@ -275,25 +277,25 @@ export default function Index({
         }
     };
 
-    const togglePromocode = async (employeeId, currentStatus) => {
-        try {
-            const res = await axios.post(
-                `/employee-masters/${employeeId}/toggle-promocode`,
-            );
+    // const togglePromocode = async (employeeId, currentStatus) => {
+    //     try {
+    //         const res = await axios.post(
+    //             `/employee-masters/${employeeId}/toggle-promocode`,
+    //         );
 
-            if (res.data?.success) {
-                // Simple refresh (or you can update state if you manage records locally)
-                window.location.reload();
-            }
-        } catch (err) {
-            console.error("Failed to toggle promocode:", err);
-            setAlertModal({
-                show: true,
-                type: "error",
-                message: "Failed to update promocode status",
-            });
-        }
-    };
+    //         if (res.data?.success) {
+    //             // Simple refresh (or you can update state if you manage records locally)
+    //             window.location.reload();
+    //         }
+    //     } catch (err) {
+    //         console.error("Failed to toggle promocode:", err);
+    //         setAlertModal({
+    //             show: true,
+    //             type: "error",
+    //             message: "Failed to update promocode status",
+    //         });
+    //     }
+    // };
 
     return (
         <>

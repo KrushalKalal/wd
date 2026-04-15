@@ -31,8 +31,10 @@ export default function Form({
         label: c.name,
     }));
 
-    const existingBilling = store?.billing_details || null;
-    const existingShipping = store?.shipping_details || null;
+    // const existingBilling = store?.billing_details || null;
+    // const existingShipping = store?.shipping_details || null;
+    const existingBilling = null;
+    const existingShipping = null;
 
     const { data, setData, post, processing } = useForm({
         name: store?.name || "",
@@ -43,8 +45,8 @@ export default function Form({
         city_id: store?.city_id || userLocation.city_id || null,
         area_id: store?.area_id || null,
         pin_code: store?.pin_code || "",
-        latitude: null, // silent — set by AddressSection
-        longitude: null, // silent — set by AddressSection
+        latitude: null,
+        longitude: null,
         zone_id: store?.zone_id || userLocation.zone_id || null,
         category_one_id: store?.category_one_id || null,
         category_two_id: store?.category_two_id || null,
@@ -52,19 +54,19 @@ export default function Form({
         contact_number_1: store?.contact_number_1 || "",
         contact_number_2: store?.contact_number_2 || "",
         email: store?.email || "",
-        billing_address: existingBilling?.address || "",
-        billing_latitude: existingBilling?.latitude || null,
-        billing_longitude: existingBilling?.longitude || null,
-        shipping_address: existingShipping?.address || "",
-        shipping_latitude: existingShipping?.latitude || null,
-        shipping_longitude: existingShipping?.longitude || null,
+        // billing_address: existingBilling?.address || "",
+        // billing_latitude: existingBilling?.latitude || null,
+        // billing_longitude: existingBilling?.longitude || null,
+        // shipping_address: existingShipping?.address || "",
+        // shipping_latitude: existingShipping?.latitude || null,
+        // shipping_longitude: existingShipping?.longitude || null,
         country: "India",
         manual_stock_entry: true,
     });
 
     const [alert, setAlert] = useState({ show: false, type: "", message: "" });
     const [errors, setErrors] = useState({});
-    const [sameAsBilling, setSameAsBilling] = useState(false);
+    // const [sameAsBilling, setSameAsBilling] = useState(false);
 
     useEffect(() => {
         if (flash?.success)
@@ -85,10 +87,7 @@ export default function Form({
         }
     }, [serverErrors]);
 
-    // Main address change — lat/lng come silently from AddressSection
     const handleAddressChange = (values) => {
-        console.log("handleAddressChange received:", values);
-
         if (values.address !== undefined) setData("address", values.address);
         if (values.state_id !== undefined) setData("state_id", values.state_id);
         if (values.city_id !== undefined) setData("city_id", values.city_id);
@@ -100,46 +99,9 @@ export default function Form({
             setData("longitude", values.longitude);
     };
 
-    // Billing address change
-    const handleBillingChange = (values) => {
-        setData((prev) => ({
-            ...prev,
-            billing_address: values.address ?? prev.billing_address,
-            billing_latitude: values.latitude ?? prev.billing_latitude,
-            billing_longitude: values.longitude ?? prev.billing_longitude,
-        }));
-
-        if (sameAsBilling) {
-            setData((prev) => ({
-                ...prev,
-                shipping_address: values.address ?? prev.shipping_address,
-                shipping_latitude: values.latitude ?? prev.shipping_latitude,
-                shipping_longitude: values.longitude ?? prev.shipping_longitude,
-            }));
-        }
-    };
-
-    // Shipping address change
-    const handleShippingChange = (values) => {
-        setData((prev) => ({
-            ...prev,
-            shipping_address: values.address ?? prev.shipping_address,
-            shipping_latitude: values.latitude ?? prev.shipping_latitude,
-            shipping_longitude: values.longitude ?? prev.shipping_longitude,
-        }));
-    };
-
-    const handleSameAsBilling = (checked) => {
-        setSameAsBilling(checked);
-        if (checked) {
-            setData((prev) => ({
-                ...prev,
-                shipping_address: prev.billing_address,
-                shipping_latitude: prev.billing_latitude,
-                shipping_longitude: prev.billing_longitude,
-            }));
-        }
-    };
+    // const handleBillingChange = (values) => { ... };
+    // const handleShippingChange = (values) => { ... };
+    // const handleSameAsBilling = (checked) => { ... };
 
     const submit = (e) => {
         e.preventDefault();
@@ -181,7 +143,7 @@ export default function Form({
                                 </div>
 
                                 {/* Store Name */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Store Name{" "}
@@ -207,7 +169,7 @@ export default function Form({
                                 </div>
 
                                 {/* Legal Name */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Legal / Official Name
@@ -228,7 +190,7 @@ export default function Form({
                                 </div>
 
                                 {/* Store Incharge */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Store Incharge
@@ -249,7 +211,7 @@ export default function Form({
                                 </div>
 
                                 {/* Contact 1 */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Contact Number 1
@@ -270,7 +232,7 @@ export default function Form({
                                 </div>
 
                                 {/* Contact 2 */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Contact Number 2
@@ -291,7 +253,7 @@ export default function Form({
                                 </div>
 
                                 {/* Email */}
-                                <div className="col-md-6">
+                                <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
                                             Email
@@ -318,7 +280,7 @@ export default function Form({
                                 <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
-                                            Category One
+                                            Group/Party wise
                                         </label>
                                         <Select
                                             options={cat1Options}
@@ -346,7 +308,7 @@ export default function Form({
                                 <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
-                                            Category Two
+                                            Off/On Trade
                                         </label>
                                         <Select
                                             options={cat2Options}
@@ -374,7 +336,8 @@ export default function Form({
                                 <div className="col-md-4">
                                     <div className="mb-3">
                                         <label className="form-label fw-semibold">
-                                            Category Three
+                                            Bar/Club/Restaurant -
+                                            Group/Individual
                                         </label>
                                         <Select
                                             options={cat3Options}
@@ -417,13 +380,10 @@ export default function Form({
                                     label="Store Address"
                                 />
 
-                                {/* ── BILLING ADDRESS ── */}
-                                <div className="col-12 mt-2 mb-2">
-                                    <h6 className="fw-bold text-dark border-bottom pb-2">
-                                        Billing Address
-                                    </h6>
+                                {/* ── BILLING ADDRESS — hidden for now ── */}
+                                {/* <div className="col-12 mt-2 mb-2">
+                                    <h6 className="fw-bold text-dark border-bottom pb-2">Billing Address</h6>
                                 </div>
-
                                 <AddressSection
                                     address={data.billing_address}
                                     userLocation={{}}
@@ -432,36 +392,26 @@ export default function Form({
                                     errors={{}}
                                     simple={true}
                                     label="Billing Address"
-                                />
+                                /> */}
 
-                                {/* ── SHIPPING ADDRESS ── */}
-                                <div className="col-12 mt-2 mb-2">
+                                {/* ── SHIPPING ADDRESS — hidden for now ── */}
+                                {/* <div className="col-12 mt-2 mb-2">
                                     <div className="d-flex align-items-center gap-3 border-bottom pb-2">
-                                        <h6 className="fw-bold text-dark mb-0">
-                                            Shipping Address
-                                        </h6>
+                                        <h6 className="fw-bold text-dark mb-0">Shipping Address</h6>
                                         <div className="form-check mb-0">
                                             <input
                                                 type="checkbox"
                                                 className="form-check-input"
                                                 id="sameAsBilling"
                                                 checked={sameAsBilling}
-                                                onChange={(e) =>
-                                                    handleSameAsBilling(
-                                                        e.target.checked,
-                                                    )
-                                                }
+                                                onChange={(e) => handleSameAsBilling(e.target.checked)}
                                             />
-                                            <label
-                                                className="form-check-label small"
-                                                htmlFor="sameAsBilling"
-                                            >
+                                            <label className="form-check-label small" htmlFor="sameAsBilling">
                                                 Same as billing
                                             </label>
                                         </div>
                                     </div>
                                 </div>
-
                                 {!sameAsBilling && (
                                     <AddressSection
                                         address={data.shipping_address}
@@ -472,7 +422,7 @@ export default function Form({
                                         simple={true}
                                         label="Shipping Address"
                                     />
-                                )}
+                                )} */}
                             </div>
 
                             {/* ── BUTTONS ── */}
@@ -484,8 +434,7 @@ export default function Form({
                                         router.visit("/store-masters")
                                     }
                                 >
-                                    <i className="fas fa-times me-2"></i>
-                                    Cancel
+                                    <i className="fas fa-times me-2"></i>Cancel
                                 </button>
                                 <button
                                     type="submit"
